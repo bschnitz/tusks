@@ -1,8 +1,9 @@
 [package]
 name = "tusks"
-version = "0.2.0"
+version = "0.4.0"
 edition = "2024"
 
 [dependencies]
 tusks-macro = { path = "../tusks-macro" }
 tusks-lib = { path = "../tusks-lib" }
+indexmap = "2.12.1"
