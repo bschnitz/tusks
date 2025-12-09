@@ -156,7 +156,7 @@ dependencies = [
 
 [[package]]
 name = "tusks"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "indexmap",
  "tusks-lib",
@@ -165,7 +165,7 @@ dependencies = [
 
 [[package]]
 name = "tusks-lib"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "clap",
  "indexmap",
@@ -176,7 +176,7 @@ dependencies = [
 
 [[package]]
 name = "tusks-macro"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "proc-macro2",
  "quote",
