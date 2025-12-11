@@ -7,3 +7,6 @@ edition = "2024"
 tusks-macro = { path = "../tusks-macro" }
 tusks-lib = { path = "../tusks-lib" }
 indexmap = "2.12.1"
+
+[features]
+debug = ["tusks-macro/debug"]
