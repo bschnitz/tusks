@@ -1,13 +1,15 @@
 [package]
 name = "tusks"
-version = "1.2.2"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description.workspace = true
 
 [dependencies]
-tusks-macro = { path = "../tusks-macro" }
-tusks-lib = { path = "../tusks-lib" }
-tusks-tasks = { path = "../tusks-tasks" }
-indexmap = "2.12.1"
+tusks-macro.workspace = true
+tusks-lib.workspace = true
+tusks-tasks.workspace = true
 
 [features]
 debug = ["tusks-macro/debug"]
