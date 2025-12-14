@@ -45,7 +45,7 @@ Instead of manually managing Clap subcommands and creating match statements, you
 
 ```toml
 [dependencies]
-tusks = "0.1"
+tusks = "2.0"
 clap = { version = "4.0", features = ["derive"] }
 ```
 
