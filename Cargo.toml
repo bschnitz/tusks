@@ -11,6 +11,7 @@ repository.workspace = true
 tusks-macro.workspace = true
 tusks-lib.workspace = true
 tusks-tasks.workspace = true
+clap.workspace = true
 
 [features]
 debug = ["tusks-macro/debug"]

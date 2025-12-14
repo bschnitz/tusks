@@ -46,7 +46,6 @@ Instead of manually managing Clap subcommands and creating match statements, you
 ```toml
 [dependencies]
 tusks = "2.0"
-clap = { version = "4.0", features = ["derive"] }
 ```
 
 ## Core Concepts
@@ -1311,8 +1310,6 @@ For more details on how to define and use module-level parameters, see [Module-L
 Here's what the same CLI structure would look like using Clap's derive API directly (abbreviated for brevity):
 
 ```rust
-use clap::{Parser, Subcommand, Args};
-
 #[derive(Parser)]
 #[command(
     about = "DevOps automation toolkit",
