@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 tusks-macro = { path = "../tusks-macro" }
 tusks-lib = { path = "../tusks-lib" }
+tusks-tasks = { path = "../tusks-tasks" }
 indexmap = "2.12.1"
 
 [features]
