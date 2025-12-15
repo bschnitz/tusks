@@ -761,11 +761,11 @@ $ tasks
 Task management tool
 
   git
-    git.clone     Clone a repository
-    git.commit    Commit changes
+    git.clone ..... Clone a repository
+    git.commit .... Commit changes
 
   docker
-    docker.build  Build Docker image
+    docker.build .. Build Docker image
 ```
 
 #### Flat Task Syntax
@@ -817,10 +817,10 @@ Options:
 
 #### Configuring Task Grouping
 
-The task overview display can be configured:
+The task overview display can be configured to control how tasks are organized and presented:
 
 ```rust
-#[tusks(root, tasks(max_groupsize=5, max_depth=20, separator="."))]
+#[tusks(root, tasks(max_groupsize=5, max_depth=20, separator=".", use_colors=true))]
 pub mod tasks {
     // ...
 }
@@ -828,7 +828,7 @@ pub mod tasks {
 
 **Parameters:**
 
-- **`separator`** (default: `"."`) - Separator between module and task
+- **`separator`** (default: `"."`) - Character(s) used to separate module levels in command names
   ```bash
   # With separator="."
   $ tasks git.clone url
@@ -837,43 +837,171 @@ pub mod tasks {
   $ tasks git:clone url
   ```
 
-- **`max_groupsize`** (default: `5`) - Maximum number of tasks per group before further subdivision
+- **`use_colors`** (default: `true`)
+  If `true` (which is the default) the overview over all tasks is colored
 
-  This parameter only affects the task overview output.
+> [!NOTE]
+> The following part of this section is proably quite technical and not that
+> important. If the task overview is fine for your needs, it is advised to skip
+> it.
+
+- **`max_groupsize`** (default: `5`) - Threshold for creating subgroups in the task overview
   
-  The grouping heuristic divides tasks hierarchically:
-  1. First level: Grouping by top-level modules (e.g., `git`, `docker`)
-  2. If a group contains more than `max_groupsize` tasks, it is further subdivided
-  3. Groups with only one element are merged with their parent group
-
-  Example with `max_groupsize=3`:
+  *This parameter only affects the task overview output, not command execution.*
+  
+  When a group contains **more than** `max_groupsize` **visible** tasks, they are organized into subgroups based on their module hierarchy. Hidden tasks (marked with `#[hidden]`) are excluded from this count.
+  
+  **Example with `max_groupsize=5`:**
   ```bash
-  # Module 'git' has 2 tasks (≤3) - remains one group
-  git
-    git.clone
-    git.commit
+  # Scenario: 4 visible tasks (+ 2 hidden tasks)
+  # 4 ≤ 5, so no grouping occurs - all tasks shown at root level
   
-  # Module 'docker' has 5 tasks (>3) - is further subdivided
-  docker.image
-    docker.image.build
-    docker.image.push
-  docker.container
-    docker.container.run
-    docker.container.stop
+  Application Commands
+  
+    docker.build .. Build Docker image
+    docker.run .... Run Docker container
+    git.clone ..... Clone a repository
+    git.commit .... Commit changes
+  ```
+  
+  ```bash
+  # Scenario: 6 visible tasks (+ 2 hidden tasks)
+  # 6 > 5, so grouping by first module level occurs
+  
+  Application Commands
+  
+    docker
+
+      docker.build .. Build Docker image
+      docker.run .... Run Docker container
+      docker.stop ... Stop Docker container
+  
+    git
+
+      git.clone ..... Clone a repository
+      git.commit .... Commit changes
+      git.push ...... Push changes
   ```
 
-- **`max_depth`** (default: `20`) - Maximum nesting depth for grouping
-
-  This parameter only affects the task overview output.
+- **`max_depth`** (default: `20`) - Maximum nesting depth for hierarchical grouping
   
-  Prevents overly deep nesting in the output:
-  - Depth 0: Root level (no grouping)
-  - Depth 1: Grouping by top-level modules
-  - Depth 2: Grouping by submodules
+  *This parameter only affects the task overview output, not command execution.*
   
-  When `max_depth` is reached, no further subdivisions are made, even if `max_groupsize` is exceeded.
+  Controls how many levels deep the grouping can go. Each level corresponds to one module in the path hierarchy.
+  
+  **Example with `max_depth=1`:**
+  ```bash
+  # Deep module structure with 8 visible tasks
+  # docker.container.list, docker.container.logs, docker.image.build, docker.image.pull, etc.
+  # With max_depth=1, only first level grouping is allowed
+  
+  Application Commands
+  
+    docker
 
-**Note:** Currently there are still bugs regarding the `max_groupsize` and `max_depth` parameters. The behavior is not exactly as described above and will likely change in the future.
+      docker.container.list .. List containers
+      docker.container.logs .. Show container logs
+      docker.image.build ..... Build an image
+      docker.image.pull ...... Pull an image
+  ```
+  
+  ```bash
+  # Same structure with max_depth=2 and max_groupsize=3
+  # Second level grouping is allowed, creating subgroups
+  
+  Application Commands
+  
+    docker.container
+
+      docker.container.list .. List containers
+      docker.container.logs .. Show container logs
+  
+    docker.image
+
+      docker.image.build ..... Build an image
+      docker.image.pull ...... Pull an image
+  ```
+
+**Interaction between `max_groupsize` and `max_depth`:**
+
+Both parameters work together to control grouping behavior. **Both conditions must be met** for grouping to occur:
+
+1. The number of visible tasks must **exceed** `max_groupsize` (threshold condition)
+2. The current depth must be **less than** `max_depth` (depth limit)
+
+**`max_depth` takes precedence** - once the depth limit is reached, no further grouping occurs regardless of group size.
+
+**Example showing the interaction:**
+
+```bash
+# Configuration: max_groupsize=3, max_depth=2
+# Module structure with 12 visible tasks:
+# docker.container.alpine.create, docker.container.alpine.run, docker.container.alpine.stop
+# docker.container.ubuntu.create, docker.container.ubuntu.run, docker.container.ubuntu.stop
+# docker.image.alpine.build, docker.image.alpine.pull
+# docker.image.ubuntu.build, docker.image.ubuntu.pull, docker.image.ubuntu.push, docker.image.ubuntu.tag
+
+Application Commands
+
+  docker.container
+    # Depth 2 reached - no further grouping even though each subgroup has >3 tasks
+    docker.container.alpine.create
+    docker.container.alpine.run
+    docker.container.alpine.stop
+    docker.container.ubuntu.create
+    docker.container.ubuntu.run
+    docker.container.ubuntu.stop
+
+  docker.image
+    # Depth 2 reached - no further grouping
+    docker.image.alpine.build
+    docker.image.alpine.pull
+    docker.image.ubuntu.build
+    docker.image.ubuntu.pull
+    docker.image.ubuntu.push
+    docker.image.ubuntu.tag
+```
+
+```bash
+# Same structure with max_groupsize=3, max_depth=3
+# Now depth 3 is allowed, enabling finer grouping
+
+Application Commands
+
+  docker.container.alpine
+
+    docker.container.alpine.create
+    docker.container.alpine.run
+    docker.container.alpine.stop
+
+  docker.container.ubuntu
+
+    docker.container.ubuntu.create
+    docker.container.ubuntu.run
+    docker.container.ubuntu.stop
+
+  docker.image.alpine
+
+    docker.image.alpine.build
+    docker.image.alpine.pull
+
+  docker.image.ubuntu
+
+    docker.image.ubuntu.build
+    docker.image.ubuntu.pull
+    docker.image.ubuntu.push
+    docker.image.ubuntu.tag
+```
+
+**How the Grouping Algorithm Works:**
+
+1. **Check depth limit**: If `max_depth` is 0, stop grouping immediately
+2. **Count visible tasks**: If visible tasks ≤ `max_groupsize`, no grouping occurs - all tasks are displayed directly
+3. **Group by module prefix**: Tasks are grouped by their next module level (e.g., all `git.*` tasks together)
+4. **Recursive grouping**: Each group is evaluated recursively with `max_depth - 1`
+5. **Single-task optimization**: Groups containing only one visible task are automatically flattened into their parent group
+
+**Tip:** Start with the default values. Decrease `max_groupsize` for more granular grouping, or decrease `max_depth` to prevent overly nested displays with deeply nested module structures.
 
 #### Complete Example
 
