@@ -1,0 +1,3 @@
+- [ ] Task Modus in tusks integrieren
+- [ ] help für einzelnen Task
+- [ ] Ausführen eines Tasks

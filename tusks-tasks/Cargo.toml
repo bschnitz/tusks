@@ -1,0 +1,14 @@
+[package]
+name = "tusks-tasks"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description.workspace = true
+repository.workspace = true
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+indexmap.workspace = true
+owo-colors = "4.2.3"
+unicode-width.workspace = true

@@ -1,0 +1,22 @@
+[package]
+name = "tusks-test"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+default-run = "tusks-test"
+description.workspace = true
+repository.workspace = true
+
+[dependencies]
+tusks.workspace = true
+tusks-tasks.workspace = true
+clap = { workspace = true, features = ["env"] }
+
+[dev-dependencies]
+assert_cmd.workspace = true
+predicates.workspace = true
+
+[features]
+debug = ["tusks/debug"]

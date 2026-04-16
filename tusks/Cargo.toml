@@ -1,0 +1,17 @@
+[package]
+name = "tusks"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description.workspace = true
+repository.workspace = true
+
+[dependencies]
+tusks-macro.workspace = true
+tusks-lib.workspace = true
+tusks-tasks.workspace = true
+clap.workspace = true
+
+[features]
+debug = ["tusks-macro/debug"]

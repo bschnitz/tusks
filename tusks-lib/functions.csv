@@ -1,0 +1,93 @@
+Funktionsname,Zeilen,Datei
+transform_attributes_to_command,60,src/codegen/util/command_attribute.rs
+build_fields_from_tusk_params,58,src/codegen/cli/module.rs
+supplement_parameters,55,src/codegen/parameters/module.rs
+build_parameters_initialization,50,src/codegen/handle_matches/module.rs
+build_match_arms_recursive,50,src/codegen/handle_matches/module.rs
+build_parameter_initialization,50,src/codegen/handle_matches/arms/submodule.rs
+from_module,50,src/parsing/module.rs
+extract_external_modules,49,src/parsing/module.rs
+add_super_field_to_parameters_struct,46,src/codegen/parameters/module.rs
+add_phantom_field_to_struct,45,src/codegen/parameters/module.rs
+build_function_arguments,43,src/codegen/handle_matches/arms/function.rs
+build_commands_enum,42,src/codegen/cli/module.rs
+from_struct,42,src/parsing/parameters.rs
+build_external_commands_enum,41,src/codegen/cli/module.rs
+find_parameters_struct_mut,41,src/codegen/parameters/module.rs
+build_cli,40,src/codegen/cli/module.rs
+add_execute_task_function,40,src/codegen/preparse/tasks/functions.rs
+set_allow_external_subcommands,39,src/codegen/preparse/tasks/functions.rs
+extract_module_items,39,src/parsing/module.rs
+attrs Implementierungen,39,src/parsing/util/attr.rs
+add_show_help_for_task,37,src/codegen/preparse/tasks/functions.rs
+build_cli_struct,36,src/codegen/cli/module.rs
+build_external_arm,36,src/codegen/handle_matches/module.rs
+build_function_call,35,src/codegen/handle_matches/arms/function.rs
+build_command_variant_from_submodule,34,src/codegen/cli/module.rs
+build_cli_fields_from_parameters,33,src/codegen/cli/module.rs
+build_enum_fields_from_parameters,33,src/codegen/cli/module.rs
+validate_two_arguments,32,src/parsing/tusk.rs
+generate_command_attribute_for_subcommands,30,src/codegen/util/command_attribute.rs
+build_nested_match_arms,29,src/codegen/handle_matches/arms/submodule.rs
+add_parameters_struct,29,src/codegen/parameters/module.rs
+build_handle_matches,28,src/codegen/handle_matches/module.rs
+is_option_u8_type,27,src/parsing/tusk.rs
+validate_is_root_or_has_parent,27,src/parsing/module.rs
+from_fn,24,src/parsing/tusk.rs
+validate_single_argument,24,src/parsing/tusk.rs
+build_function_match_arm,23,src/codegen/handle_matches/arms/function.rs
+build_pattern_bindings,23,src/codegen/handle_matches/arms/function.rs
+is_vec_string,23,src/parsing/tusk.rs
+build_external_subcommand_match_arm,22,src/codegen/handle_matches/arms/function.rs
+build_default_function_match_arm,21,src/codegen/handle_matches/arms/function.rs
+build_function_path,19,src/codegen/handle_matches/arms/function.rs
+validate_return_type,19,src/parsing/tusk.rs
+parse (TusksAttr),19,src/parsing/attribute/parse.rs
+build_command_variant_from_tusk,18,src/codegen/cli/module.rs
+validate_default_function_arguments,18,src/parsing/tusk.rs
+parse (TasksConfig),18,src/parsing/attribute/parse.rs
+build_submodule_match_arm,17,src/codegen/handle_matches/arms/submodule.rs
+build_no_command_error_arm,17,src/codegen/handle_matches/module.rs
+get_attribute_value (Trait),17,src/parsing/util/get_attribute_value.rs
+extract_value,16,src/parsing/util/get_attribute_value.rs
+build_final_match_arm,15,src/codegen/handle_matches/arms/submodule.rs
+is_parameters_reference,15,src/parsing/tusk.rs
+error_single_argument,15,src/parsing/tusk.rs
+build_pattern_fields,14,src/codegen/handle_matches/arms/function.rs
+extract_lifetime,13,src/codegen/parameters/module.rs
+parse_trailing_comma,12,src/parsing/attribute/parse.rs
+extract_attributes (TusksParameters),12,src/codegen/util/attribute.rs
+is_u8_type,11,src/parsing/tusk.rs
+check_duplicate_default,11,src/parsing/tusk.rs
+is_parameters_type,11,src/codegen/cli/module.rs
+add_struct_to_module,11,src/codegen/parameters/module.rs
+generate_command_attribute,10,src/codegen/util/command_attribute.rs
+has_attr (Trait),10,src/parsing/util/attr.rs
+error_message_too_many_args,9,src/parsing/tusk.rs
+parse_bool_flag,9,src/parsing/attribute/parse.rs
+generate_command_attribute_for_external_subcommands,9,src/codegen/util/command_attribute.rs
+tusk_has_parameters_arg,8,src/codegen/handle_matches/module.rs
+validate,8,src/parsing/tusk.rs
+dereference_type,8,src/codegen/cli/module.rs
+extract_attributes (ExternalModule),8,src/codegen/util/attribute.rs
+add_sub_field_if_needed,7,src/codegen/handle_matches/arms/submodule.rs
+error_two_arguments_signature,7,src/parsing/tusk.rs
+parse_usize,7,src/parsing/attribute/parse.rs
+unknown_parameter_error,7,src/parsing/attribute/parse.rs
+use_attributes_or_default,7,src/codegen/util/command_attribute.rs
+extract_attributes (TusksModule),7,src/codegen/util/attribute.rs
+add_use_staements,6,src/codegen/preparse/tasks/functions.rs
+parse_struct,6,src/parsing/module.rs
+unknown_attribute_error,6,src/parsing/attribute/parse.rs
+extract_attributes (Tusk),6,src/codegen/util/attribute.rs
+has_commands,5,src/codegen/handle_matches/arms/submodule.rs
+parse_nested_config,4,src/parsing/attribute/parse.rs
+parse_string,4,src/parsing/attribute/parse.rs
+get_attribute_bool (Trait),4,src/parsing/util/get_attribute_value.rs
+generate_command_attribute (Tusk),4,src/codegen/util/command_attribute.rs
+generate_command_attribute (ExternalModule),4,src/codegen/util/command_attribute.rs
+convert_function_to_enum_variant,4,src/codegen/util/enum_util.rs
+convert_submodule_to_enum_variant,4,src/codegen/util/enum_util.rs
+build_variant_ident,3,src/codegen/handle_matches/arms/submodule.rs
+convert_external_module_to_enum_variant,3,src/codegen/util/enum_util.rs
+is_reference_type,3,src/parsing/parameters.rs
