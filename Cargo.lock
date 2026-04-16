@@ -358,7 +358,7 @@ checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
 
 [[package]]
 name = "tusks"
-version = "2.0.0"
+version = "2.1.7"
 dependencies = [
  "clap",
  "tusks-lib",
@@ -368,7 +368,7 @@ dependencies = [
 
 [[package]]
 name = "tusks-lib"
-version = "2.0.0"
+version = "2.1.7"
 dependencies = [
  "indexmap",
  "proc-macro2",
@@ -378,7 +378,7 @@ dependencies = [
 
 [[package]]
 name = "tusks-macro"
-version = "2.0.0"
+version = "2.1.7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -388,7 +388,7 @@ dependencies = [
 
 [[package]]
 name = "tusks-tasks"
-version = "2.0.0"
+version = "2.1.7"
 dependencies = [
  "clap",
  "indexmap",
@@ -398,7 +398,7 @@ dependencies = [
 
 [[package]]
 name = "tusks-test"
-version = "2.0.0"
+version = "2.1.7"
 dependencies = [
  "assert_cmd",
  "clap",
