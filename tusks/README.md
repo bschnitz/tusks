@@ -63,15 +63,112 @@ The CLI is started with `cli::exec_cli()`, which parses the command line argumen
 
 ## Relationship with Clap
 
-Tusks is a high-level wrapper around [Clap](https://docs.rs/clap/), the popular CLI parsing framework for Rust. Many of Clap's features are retained.
+Tusks is a high-level wrapper around [Clap](https://docs.rs/clap/). It generates Clap derive code internally, which means **most Clap attributes work directly in tusks** without any special handling.
 
-- `#[arg()]` attributes for argument configuration
-- `#[command()]` attributes for subcommand descriptions
-- Data types are parsed as in Clap
-- Automatic help generation
-- Type-safe parsing
+### What passes through unchanged
 
-Tusks generates Clap code internally.
+The following attributes are forwarded 1:1 to the generated Clap code:
+
+**`#[arg(...)]` on function parameters and Parameters struct fields:**
+
+All Clap arg attributes work, including: `short`, `long`, `help`, `long_help`, `default_value`, `default_value_t`, `value_parser`, `value_name`, `value_hint`, `value_delimiter`, `num_args`, `env`, `conflicts_with`, `requires`, `required`, `action`, `hide`, `global`, `exclusive`, `overrides_with`, `value_enum`, and any other `Arg` builder method.
+
+**`#[command(...)]` on modules and functions:**
+
+All Clap command attributes work, including: `about`, `long_about`, `version`, `author`, `name`, `alias`, `visible_alias`, `arg_required_else_help`, `propagate_version`, `subcommand_required`, `hide`, `after_help`, `before_help`, `styles`, and any other `Command` builder method.
+
+### Type handling
+
+Clap's automatic type handling works the same way in tusks:
+
+| Type | Behavior |
+|------|----------|
+| `String`, `u32`, `f64`, ... | Positional argument (parsed via `FromStr`) |
+| `bool` | Flag (use `#[arg(long)]` or `#[arg(short)]`) |
+| `Option<T>` | Optional argument |
+| `Vec<T>` | Multi-value argument |
+
+### ValueEnum support
+
+Enums with `#[derive(Clone, clap::ValueEnum)]` can be defined inside tusks modules and used as argument types. Clap automatically validates the input and shows possible values in help output:
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    #[derive(Clone, ::tusks::clap::ValueEnum)]
+    pub enum Color {
+        Auto,
+        Always,
+        Never,
+    }
+
+    pub fn paint(
+        #[arg(long, default_value = "auto")]
+        color: Color,
+        message: String,
+    ) {
+        println!("{:?}: {}", color, message);
+    }
+}
+```
+
+```bash
+$ my-cli paint --color always "hello"
+Always: hello
+
+$ my-cli paint --color invalid "hello"
+error: invalid value 'invalid' for '--color <COLOR>'
+  [possible values: auto, always, never]
+```
+
+### Global arguments
+
+Use `#[arg(global = true)]` on a Parameters field to make it available in all subcommands, regardless of where it is placed on the command line:
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    pub struct Parameters<'a> {
+        #[arg(long, global = true)]
+        pub verbose: &'a bool,
+    }
+
+    pub mod deploy {
+        pub fn run(params: &Parameters) {
+            if *params.super_.verbose {
+                println!("verbose deploy");
+            }
+        }
+    }
+}
+```
+
+```bash
+# Both work:
+$ my-cli --verbose deploy run
+$ my-cli deploy run --verbose
+```
+
+### What tusks adds on top of Clap
+
+| Feature | Description |
+|---------|-------------|
+| Module → Subcommand mapping | Rust modules automatically become CLI subcommands |
+| `Parameters` struct with `super_` chaining | Hierarchical parameter sharing across levels |
+| External modules (`pub use ... as ...`) | Split CLI across files with automatic parameter chaining |
+| `#[default]` functions | Default action when module invoked without subcommand |
+| `#[skip]` attribute | Exclude public items from CLI |
+| Tasks mode (`#[tusks(root, tasks)]`) | Rake-style flat `module.command` syntax |
+| `Result<T, E>` return types | Error auto-printed to stderr, exit code 1 |
+| Doc comments as help text | `///` on functions appears in `--help` |
+| Async support (`features = ["async"]`) | `async fn` commands with tokio runtime |
+| Shell completions (`features = ["completions"]`) | `--completions <SHELL>` flag |
+
+### What does NOT work (or differs from Clap)
+
+- **`#[derive(Args)]` / `#[group()]`**: Tusks uses `Parameters` instead of reusable `Args` structs. You cannot define argument groups.
+- **`#[command(flatten)]` for user types**: Only used internally for external modules. You cannot flatten arbitrary `Args` structs.
+- **Doc comment splitting**: In Clap, a blank line in `///` comments splits `about` and `long_about`. In tusks, use explicit `#[command(about = "...", long_about = "...")]` for reliable multi-line help.
 
 ## Features and Examples
 
