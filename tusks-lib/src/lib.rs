@@ -7,3 +7,6 @@ pub use parsing::util::attr::AttributeCheck;
 pub use parsing::util::get_attribute_value::AttributeValue;
 pub use parsing::attribute;
 pub use codegen::preparse::tasks;
+pub use codegen::cli::CliCodegen;
+pub use codegen::handle_matches::HandleMatchesCodegen;
+pub use codegen::parameters::ParametersCodegen;

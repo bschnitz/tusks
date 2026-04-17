@@ -3,10 +3,10 @@ use quote::quote;
 use proc_macro2::Span;
 
 use crate::{TusksModule, models::TusksParameters};
+use super::ParametersCodegen;
 
-impl TusksModule {
-    /// Supplement Parameters structs where missing and add super_ fields
-    pub fn supplement_parameters(
+impl ParametersCodegen for TusksModule {
+    fn supplement_parameters(
         &mut self, 
         module: &mut ItemMod, 
         is_tusks_root: bool,
@@ -60,7 +60,10 @@ impl TusksModule {
         
         Ok(())
     }
-    
+}
+
+/// Internal helpers for parameter supplementation.
+impl TusksModule {
     /// Extract the first lifetime parameter from a struct
     pub fn extract_lifetime(item_struct: &ItemStruct) -> syn::Result<Lifetime> {
         for param in &item_struct.generics.params {

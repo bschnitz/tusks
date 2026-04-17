@@ -6,10 +6,10 @@ use crate::codegen::util::enum_util::to_variant_ident;
 use crate::codegen::util::field_util::is_generated_field;
 
 use crate::{TusksModule, models::{Tusk, TusksParameters}};
+use super::CliCodegen;
 
-impl TusksModule{
-    /// Generate all code inside `pub mod cli`
-    pub fn build_cli(&self, path: Vec<&Ident>, debug: bool) -> TokenStream {
+impl CliCodegen for TusksModule {
+    fn build_cli(&self, path: Vec<&Ident>, debug: bool) -> TokenStream {
         let mut items = Vec::new();
 
         items.push(quote! {use ::tusks::clap;});
@@ -47,7 +47,10 @@ impl TusksModule{
             #(#items)*
         }
     }
+}
 
+/// Internal helpers for CLI code generation.
+impl TusksModule {
     /// Generate the root Cli struct
     fn build_cli_struct(&self, debug: bool) -> TokenStream {
         // Extract fields from parameters struct

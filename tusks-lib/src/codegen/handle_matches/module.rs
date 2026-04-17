@@ -6,10 +6,10 @@ use crate::codegen::module_path::ModulePath;
 use crate::codegen::util::enum_util::to_variant_ident;
 
 use crate::{TusksModule, models::Tusk};
+use super::HandleMatchesCodegen;
 
-impl TusksModule {
-    /// Generate the handle_matches function
-    pub fn build_handle_matches(&self, is_tusks_root: bool) -> TokenStream {
+impl HandleMatchesCodegen for TusksModule {
+    fn build_handle_matches(&self, is_tusks_root: bool) -> TokenStream {
         let signature = if is_tusks_root {
             quote! {
                 pub fn handle_matches(cli: &cli::Cli) -> Option<u8>
@@ -38,7 +38,10 @@ impl TusksModule {
             }
         }
     }
+}
 
+/// Internal helpers for handle_matches code generation.
+impl TusksModule {
     fn build_parameters_initialization(&self) -> TokenStream {
         if let Some(ref params) = self.parameters {
             let mut field_inits = Vec::new();
