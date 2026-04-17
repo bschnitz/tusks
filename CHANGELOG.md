@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.2.0] - 2026-04-17
+
+### Added
+- **ValueEnum support**: Enums with `#[derive(Clone, clap::ValueEnum)]` inside
+  tusks modules now work as argument types with automatic validation and
+  possible-values in help output.
+- **Global arg tests**: Verified and tested that `#[arg(global = true)]` passes
+  through correctly to clap.
+- **CHANGELOG.md**: Project now tracks changes in a changelog.
+
+### Changed
+- Resolve all clippy warnings; rename `to_list()` to `into_list()` following
+  Rust naming conventions for consuming methods.
+- Expand "Relationship with Clap" README section with comprehensive attribute
+  passthrough documentation, ValueEnum example, global arg example, and
+  explicit list of unsupported features.
+
 ## [3.1.0] - 2026-04-17
 
 ### Added
