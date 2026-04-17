@@ -1,47 +1,30 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 
+use crate::codegen::module_path::ModulePath;
 use crate::codegen::util::enum_util::to_variant_ident;
-
-use crate::{TusksModule, models::Tusk};
 use crate::codegen::util::field_util::is_generated_field;
+use crate::{TusksModule, models::Tusk};
 
 impl TusksModule {
-    /// Coordinates the construction of a match arm for a function.
-    /// Creates all necessary parts and combines them into the final code.
-    /// 
-    /// # Examples
-    /// 
-    /// For a function `fn my_func(arg1: String, arg2: i32)` this generates:
+    /// Generates a match arm for a command function.
+    ///
+    /// For `fn my_func(arg1: String, arg2: i32)` this produces:
     /// ```ignore
-    /// Some(cli::Commands::MyFunction { arg1: p1, arg2: p2 }) => {
+    /// Some(cli::Commands::my_func { arg1: p1, arg2: p2 }) => {
     ///     super::my_func(p1.clone(), p2.clone());
-    /// }
-    /// ```
-    /// 
-    /// For a function with parameters `fn my_func(params: &Parameters, arg1: String)`
-    /// this generates:
-    /// ```ignore
-    /// Some(cli::Commands::MyFunction { arg1: p1 }) => {
-    ///     super::my_func(&parameters, p1.clone());
     /// }
     /// ```
     pub fn build_function_match_arm(
         &self,
         tusk: &Tusk,
         cli_path: &TokenStream,
-        path: &[&str]
+        path: &ModulePath,
     ) -> TokenStream {
         let variant_ident = to_variant_ident(&tusk.func.sig.ident);
         let pattern_bindings = self.build_pattern_bindings(tusk);
         let pattern_fields = self.build_pattern_fields(&pattern_bindings);
-        let function_call = self.build_function_call(
-            tusk,
-            &pattern_bindings,
-            path,
-            false,
-            false
-        );
+        let function_call = self.build_function_call(tusk, &pattern_bindings, path, false, false);
 
         quote! {
             Some(#cli_path::Commands::#variant_ident { #(#pattern_fields),* }) => {
@@ -53,16 +36,12 @@ impl TusksModule {
     pub fn build_default_function_match_arm(
         &self,
         tusk: &Tusk,
-        path: &[&str],
-        is_external_subcommand_case: bool
+        path: &ModulePath,
+        is_external_subcommand_case: bool,
     ) -> TokenStream {
         let pattern_bindings = self.build_pattern_bindings(tusk);
         let function_call = self.build_function_call(
-            tusk,
-            &pattern_bindings,
-            path,
-            true,
-            is_external_subcommand_case
+            tusk, &pattern_bindings, path, true, is_external_subcommand_case,
         );
 
         quote! {
@@ -72,136 +51,94 @@ impl TusksModule {
         }
     }
 
-    pub fn build_external_subcommand_match_arm(&self, tusk: &Tusk, path: &[&str]) -> TokenStream
-    {
+    pub fn build_external_subcommand_match_arm(
+        &self,
+        tusk: &Tusk,
+        path: &ModulePath,
+    ) -> TokenStream {
         let pattern_bindings = self.build_pattern_bindings(tusk);
         let function_call = self.build_function_call(
-            tusk,
-            &pattern_bindings,
-            path,
-            false,
-            true
+            tusk, &pattern_bindings, path, false, true,
         );
 
-        let path_tokens = path.iter().map(|segment| {
-            let ident = format_ident!("{}", segment);
-            quote! { #ident:: }
-        });
+        let cli_path = path.cli_path();
 
         quote! {
-            Some(cli::#(#path_tokens)*Commands::ClapExternalSubcommand(external_subcommand_args)) => {
+            Some(#cli_path::Commands::ClapExternalSubcommand(external_subcommand_args)) => {
                 #function_call
             }
         }
     }
 
-    /// Creates the function call with proper arguments and path, always returning Option<i32>
     fn build_function_call(
         &self,
         tusk: &Tusk,
         pattern_bindings: &[(syn::Ident, syn::Ident)],
-        path: &[&str],
+        path: &ModulePath,
         is_default_case: bool,
-        is_external_subcommand_case: bool
+        is_external_subcommand_case: bool,
     ) -> TokenStream {
         let func_args = self.build_function_arguments(
-            tusk,
-            pattern_bindings,
-            is_default_case,
-            is_external_subcommand_case
+            tusk, pattern_bindings, is_default_case, is_external_subcommand_case,
         );
-        let func_path = self.build_function_path(tusk, path);
-        
+        let func_name = &tusk.func.sig.ident;
+        let func_path = path.super_path_to(func_name);
+
         match &tusk.func.sig.output {
             syn::ReturnType::Default => {
-                // Function returns () - call it and return None
                 quote! { #func_path(#(#func_args),*); None }
             }
             syn::ReturnType::Type(_, ty) => {
                 if Tusk::is_u8_type(ty) {
-                    // Function returns u8 - call it and wrap in Some
                     quote! { Some(#func_path(#(#func_args),*)) }
                 } else if Tusk::is_option_u8_type(ty) {
-                    // Function returns Option<u8> - call it and return as is
                     quote! { #func_path(#(#func_args),*) }
                 } else {
-                    // This should not happen due to validation
                     quote! { None }
                 }
             }
         }
     }
 
-    /// Creates bindings for function parameters (p1, p2, p3, ...).
-    /// Skips the first parameter if it's &Parameters.
-    /// 
-    /// # Examples
-    /// 
-    /// For function `fn my_func(params: &Params, arg1: String, arg2: i32)`:
-    /// ```ignore
-    /// [("arg1", "p1"), ("arg2", "p2")]
-    /// ```
+    /// Creates bindings `[(field_name, p1), (field_name, p2), ...]`
+    /// for function parameters, skipping the first if it's `&Parameters`.
     fn build_pattern_bindings(&self, tusk: &Tusk) -> Vec<(syn::Ident, syn::Ident)> {
-        let has_params_arg = self.tusk_has_parameters_arg(tusk);
-        let skip = if has_params_arg { 1 } else { 0 };
-
-        let mut pattern_bindings = Vec::new();
-        let mut param_counter = 1;
+        let skip = if self.tusk_has_parameters_arg(tusk) { 1 } else { 0 };
+        let mut bindings = Vec::new();
+        let mut counter = 1;
 
         for param in tusk.func.sig.inputs.iter().skip(skip) {
             if let syn::FnArg::Typed(pat_type) = param {
                 if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                    let field_name = &pat_ident.ident;
-                    let binding_name = syn::Ident::new(
-                        &format!("p{}", param_counter),
-                        Span::call_site()
-                    );
-                    pattern_bindings.push((field_name.clone(), binding_name.clone()));
-                    param_counter += 1;
+                    let binding = syn::Ident::new(&format!("p{}", counter), Span::call_site());
+                    bindings.push((pat_ident.ident.clone(), binding));
+                    counter += 1;
                 }
             }
         }
 
-        pattern_bindings
+        bindings
     }
 
-    /// Creates the fields for the match arm pattern.
-    /// 
-    /// # Examples
-    /// 
-    /// For bindings `[("arg1", "p1"), ("arg2", "p2")]`:
-    /// ```ignore
-    /// ["arg1: p1", "arg2: p2"]
-    /// ```
+    /// Converts bindings to pattern fields `[field: p1, field: p2, ...]`,
+    /// filtering out generated fields.
     pub fn build_pattern_fields(
         &self,
-        pattern_bindings: &[(syn::Ident, syn::Ident)]
+        pattern_bindings: &[(syn::Ident, syn::Ident)],
     ) -> Vec<TokenStream> {
-        pattern_bindings.iter()
-            .filter(|(field_name, _)| {
-                !is_generated_field(&field_name.to_string())
-            })
-            .map(|(field_name, binding_name)| {
-                quote! { #field_name: #binding_name }
-            })
+        pattern_bindings
+            .iter()
+            .filter(|(name, _)| !is_generated_field(&name.to_string()))
+            .map(|(name, binding)| quote! { #name: #binding })
             .collect()
     }
 
-    /// Creates the arguments for the function call.
-    /// Adds &parameters if present, followed by the bound parameters.
-    /// 
-    /// # Examples
-    /// 
-    /// For function with parameters:
-    /// ```ignore
-    /// [&parameters, p1.clone(), p2.clone()]
-    /// ```
     fn build_function_arguments(
         &self,
         tusk: &Tusk,
         pattern_bindings: &[(syn::Ident, syn::Ident)],
         is_default_case: bool,
-        is_external_subcommand_case: bool
+        is_external_subcommand_case: bool,
     ) -> Vec<TokenStream> {
         let has_params_arg = self.tusk_has_parameters_arg(tusk);
         let mut func_args = Vec::new();
@@ -229,25 +166,5 @@ impl TusksModule {
         }
 
         func_args
-    }
-
-    /// Creates the full path to the function.
-    /// Handles both local and nested paths.
-    /// 
-    /// # Examples
-    /// 
-    /// - Local path: `super::my_function`
-    /// - Nested path: `super::module1::module2::my_function`
-    fn build_function_path(&self, tusk: &Tusk, path: &[&str]) -> TokenStream {
-        let func_name = &tusk.func.sig.ident;
-
-        if path.is_empty() {
-            quote! { super::#func_name }
-        } else {
-            let path_idents: Vec<_> = path.iter()
-                .map(|p| syn::Ident::new(p, Span::call_site()))
-                .collect();
-            quote! { super::#(#path_idents)::*::#func_name }
-        }
     }
 }
