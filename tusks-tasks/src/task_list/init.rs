@@ -106,3 +106,198 @@ impl TaskCollection {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- TaskCollection::from_command ---
+
+    #[test]
+    fn from_command_single_leaf() {
+        let cmd = Command::new("root")
+            .subcommand(Command::new("hello").about("Say hello"));
+
+        let col = TaskCollection::from_command(&cmd, vec![]);
+        assert_eq!(col.len(), 1);
+        assert_eq!(col.tasks()[0].path, vec!["hello"]);
+        assert_eq!(col.tasks()[0].description.as_deref(), Some("Say hello"));
+    }
+
+    #[test]
+    fn from_command_nested_subcommands() {
+        let cmd = Command::new("root")
+            .subcommand(
+                Command::new("git")
+                    .subcommand(Command::new("clone"))
+                    .subcommand(Command::new("push"))
+            )
+            .subcommand(Command::new("build"));
+
+        let col = TaskCollection::from_command(&cmd, vec![]);
+        let paths: Vec<String> = col.tasks().iter()
+            .map(|t| t.path.join("."))
+            .collect();
+        assert_eq!(paths, vec!["build", "git.clone", "git.push"]);
+    }
+
+    #[test]
+    fn from_command_preserves_hidden_flag() {
+        let cmd = Command::new("root")
+            .subcommand(Command::new("visible"))
+            .subcommand(Command::new("hidden").hide(true));
+
+        let col = TaskCollection::from_command(&cmd, vec![]);
+        assert_eq!(col.len(), 2);
+
+        let visible = col.tasks().iter().find(|t| t.path[0] == "visible").unwrap();
+        assert!(!visible.hidden);
+
+        let hidden = col.tasks().iter().find(|t| t.path[0] == "hidden").unwrap();
+        assert!(hidden.hidden);
+    }
+
+    #[test]
+    fn from_command_deeply_nested() {
+        let cmd = Command::new("root")
+            .subcommand(
+                Command::new("a")
+                    .subcommand(
+                        Command::new("b")
+                            .subcommand(Command::new("c"))
+                    )
+            );
+
+        let col = TaskCollection::from_command(&cmd, vec![]);
+        assert_eq!(col.len(), 1);
+        assert_eq!(col.tasks()[0].path, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn from_command_no_subcommands_yields_single_root_task() {
+        let cmd = Command::new("root");
+        let col = TaskCollection::from_command(&cmd, vec![]);
+        assert_eq!(col.len(), 1);
+        assert!(col.tasks()[0].path.is_empty());
+    }
+
+    // --- TaskGroup::create_grouping ---
+
+    #[test]
+    fn grouping_small_set_stays_flat() {
+        let cmd = Command::new("root")
+            .subcommand(Command::new("a"))
+            .subcommand(Command::new("b"))
+            .subcommand(Command::new("c"));
+
+        let task_list = TaskList::from_command(&cmd, ".".into(), 5, 20);
+        assert!(task_list.root.subgroups.is_empty());
+        assert_eq!(task_list.root.direct_tasks.len(), 3);
+    }
+
+    #[test]
+    fn grouping_creates_subgroups_when_exceeding_max() {
+        let cmd = Command::new("root")
+            .subcommand(
+                Command::new("git")
+                    .subcommand(Command::new("clone"))
+                    .subcommand(Command::new("push"))
+                    .subcommand(Command::new("pull"))
+            )
+            .subcommand(
+                Command::new("docker")
+                    .subcommand(Command::new("build"))
+                    .subcommand(Command::new("run"))
+                    .subcommand(Command::new("stop"))
+            );
+
+        let task_list = TaskList::from_command(&cmd, ".".into(), 2, 20);
+        assert!(!task_list.root.subgroups.is_empty());
+    }
+
+    #[test]
+    fn grouping_collapses_single_task_subgroups() {
+        let cmd = Command::new("root")
+            .subcommand(
+                Command::new("git")
+                    .subcommand(Command::new("clone"))
+                    .subcommand(Command::new("push"))
+                    .subcommand(Command::new("pull"))
+            )
+            .subcommand(
+                Command::new("docker")
+                    .subcommand(Command::new("build"))
+            );
+
+        let task_list = TaskList::from_command(&cmd, ".".into(), 1, 20);
+        // docker has only 1 task → collapsed to direct_tasks
+        assert!(!task_list.root.subgroups.contains_key("docker"));
+        // git has 3 tasks → remains as subgroup
+        assert!(task_list.root.subgroups.contains_key("git"));
+    }
+
+    #[test]
+    fn grouping_max_depth_zero_stays_flat() {
+        let cmd = Command::new("root")
+            .subcommand(
+                Command::new("git")
+                    .subcommand(Command::new("clone"))
+                    .subcommand(Command::new("push"))
+            );
+
+        let task_list = TaskList::from_command(&cmd, ".".into(), 1, 0);
+        assert!(task_list.root.subgroups.is_empty());
+        assert_eq!(task_list.root.direct_tasks.len(), 2);
+    }
+
+    #[test]
+    fn grouping_hidden_tasks_not_counted_for_threshold() {
+        let cmd = Command::new("root")
+            .subcommand(
+                Command::new("git")
+                    .subcommand(Command::new("clone"))
+                    .subcommand(Command::new("push"))
+            )
+            .subcommand(Command::new("hidden1").hide(true))
+            .subcommand(Command::new("hidden2").hide(true))
+            .subcommand(Command::new("hidden3").hide(true));
+
+        // 5 total but only 2 visible, max_groupsize=3
+        let task_list = TaskList::from_command(&cmd, ".".into(), 3, 20);
+        assert!(task_list.root.subgroups.is_empty());
+    }
+
+    // --- TaskList::from_command metadata ---
+
+    #[test]
+    fn from_command_captures_description() {
+        let cmd = Command::new("root")
+            .about("Short desc")
+            .subcommand(Command::new("task1"));
+
+        let task_list = TaskList::from_command(&cmd, ".".into(), 5, 20);
+        assert_eq!(task_list.description.as_deref(), Some("Short desc"));
+    }
+
+    #[test]
+    fn from_command_prefers_long_about() {
+        let cmd = Command::new("root")
+            .about("Short")
+            .long_about("Long description")
+            .subcommand(Command::new("task1"));
+
+        let task_list = TaskList::from_command(&cmd, ".".into(), 5, 20);
+        assert_eq!(task_list.description.as_deref(), Some("Long description"));
+    }
+
+    #[test]
+    fn from_command_stores_config() {
+        let task_list = TaskList::from_command(
+            &Command::new("root").subcommand(Command::new("x")),
+            "::".into(), 10, 3
+        );
+        assert_eq!(task_list.separator, "::");
+        assert_eq!(task_list.max_groupsize, 10);
+        assert_eq!(task_list.max_depth, 3);
+    }
+}

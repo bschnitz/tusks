@@ -163,3 +163,145 @@ fn unknown_parameter_error(ident: &Ident, name: &str) -> syn::Error {
         format!("unknown tasks parameter: {}", name)
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_tusks_attr(input: &str) -> syn::Result<TusksAttr> {
+        syn::parse_str::<TusksAttr>(input)
+    }
+
+    fn parse_tasks_config(input: &str) -> syn::Result<TasksConfig> {
+        syn::parse_str::<TasksConfig>(input)
+    }
+
+    // --- TusksAttr parsing ---
+
+    #[test]
+    fn empty_attr() {
+        let attr = parse_tusks_attr("").unwrap();
+        assert!(!attr.debug);
+        assert!(!attr.root);
+        assert!(!attr.derive_debug_for_parameters);
+        assert!(attr.tasks.is_none());
+    }
+
+    #[test]
+    fn root_flag() {
+        let attr = parse_tusks_attr("root").unwrap();
+        assert!(attr.root);
+        assert!(!attr.debug);
+    }
+
+    #[test]
+    fn debug_flag() {
+        let attr = parse_tusks_attr("debug").unwrap();
+        assert!(attr.debug);
+    }
+
+    #[test]
+    fn derive_debug_flag() {
+        let attr = parse_tusks_attr("derive_debug_for_parameters").unwrap();
+        assert!(attr.derive_debug_for_parameters);
+    }
+
+    #[test]
+    fn explicit_bool_true() {
+        let attr = parse_tusks_attr("root = true").unwrap();
+        assert!(attr.root);
+    }
+
+    #[test]
+    fn explicit_bool_false() {
+        let attr = parse_tusks_attr("root = false").unwrap();
+        assert!(!attr.root);
+    }
+
+    #[test]
+    fn multiple_flags() {
+        let attr = parse_tusks_attr("root, debug").unwrap();
+        assert!(attr.root);
+        assert!(attr.debug);
+    }
+
+    #[test]
+    fn all_flags() {
+        let attr = parse_tusks_attr("root, debug, derive_debug_for_parameters").unwrap();
+        assert!(attr.root);
+        assert!(attr.debug);
+        assert!(attr.derive_debug_for_parameters);
+    }
+
+    #[test]
+    fn unknown_attribute_errors() {
+        let err = parse_tusks_attr("unknown").unwrap_err();
+        assert!(err.to_string().contains("unknown tusks attribute"));
+    }
+
+    #[test]
+    fn tasks_without_parens_uses_defaults() {
+        let attr = parse_tusks_attr("root, tasks").unwrap();
+        assert!(attr.root);
+        let tasks = attr.tasks.unwrap();
+        assert_eq!(tasks.max_groupsize, 5);
+        assert_eq!(tasks.max_depth, 20);
+        assert_eq!(tasks.separator, ".");
+        assert!(tasks.use_colors);
+    }
+
+    #[test]
+    fn tasks_with_custom_config() {
+        let attr = parse_tusks_attr(
+            "root, tasks(max_groupsize = 10, separator = \"/\", max_depth = 3)"
+        ).unwrap();
+        let tasks = attr.tasks.unwrap();
+        assert_eq!(tasks.max_groupsize, 10);
+        assert_eq!(tasks.max_depth, 3);
+        assert_eq!(tasks.separator, "/");
+    }
+
+    #[test]
+    fn tasks_use_colors_false() {
+        let attr = parse_tusks_attr("tasks(use_colors = false)").unwrap();
+        let tasks = attr.tasks.unwrap();
+        assert!(!tasks.use_colors);
+    }
+
+    #[test]
+    fn tasks_use_colors_flag_only() {
+        let attr = parse_tusks_attr("tasks(use_colors)").unwrap();
+        let tasks = attr.tasks.unwrap();
+        assert!(tasks.use_colors);
+    }
+
+    // --- TasksConfig parsing ---
+
+    #[test]
+    fn tasks_config_defaults() {
+        let config = parse_tasks_config("").unwrap();
+        assert_eq!(config.max_groupsize, 5);
+        assert_eq!(config.max_depth, 20);
+        assert_eq!(config.separator, ".");
+        assert!(config.use_colors);
+    }
+
+    #[test]
+    fn tasks_config_partial_override() {
+        let config = parse_tasks_config("max_groupsize = 3").unwrap();
+        assert_eq!(config.max_groupsize, 3);
+        assert_eq!(config.max_depth, 20); // default
+    }
+
+    #[test]
+    fn tasks_config_unknown_parameter_errors() {
+        let err = parse_tasks_config("unknown = 5").unwrap_err();
+        assert!(err.to_string().contains("unknown tasks parameter"));
+    }
+
+    #[test]
+    fn tasks_config_custom_separator() {
+        let config = parse_tasks_config("separator = \"::\"").unwrap();
+        assert_eq!(config.separator, "::");
+    }
+}

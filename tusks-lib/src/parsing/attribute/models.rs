@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct TusksAttr {
     pub debug: bool,
     pub root: bool,
@@ -5,6 +6,7 @@ pub struct TusksAttr {
     pub tasks: Option<TasksConfig>,
 }
 
+#[derive(Debug)]
 pub struct TasksConfig {
     pub max_groupsize: usize,
     pub max_depth: usize,

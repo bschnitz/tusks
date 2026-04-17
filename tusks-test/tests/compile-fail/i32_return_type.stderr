@@ -1,0 +1,5 @@
+error: command function must return (), u8, or Option<u8>
+ --> tests/compile-fail/i32_return_type.rs:5:23
+  |
+5 |     pub fn hello() -> i32 {
+  |                       ^^^

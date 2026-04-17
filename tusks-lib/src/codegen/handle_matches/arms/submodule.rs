@@ -15,7 +15,7 @@ impl TusksModule {
     /// # Example
     /// Input: submodule "admin" with parameters and commands
     /// Output: A match arm like:
-    /// ```rust
+    /// ```ignore
     /// Some(Cli::Commands::Admin { user: p1, sub }) => {
     ///     let super_parameters = &parameters;
     ///     let parameters = super::admin::Parameters { user: p1, super_: super_parameters };

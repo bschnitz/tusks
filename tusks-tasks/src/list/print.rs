@@ -84,3 +84,78 @@ impl List {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn align_column_basic() {
+        let list = List {
+            description: None,
+            groups: vec![ListGroup {
+                header: ListGroupHeader { name: None },
+                tasks: vec![
+                    ListTask { name: "short".into(), description: Some("desc".into()) },
+                    ListTask { name: "longername".into(), description: Some("desc".into()) },
+                ],
+            }],
+        };
+        let config = RenderConfig::default();
+        // task_indent(4) + max_width("longername"=10) + min_gap(4) = 18
+        assert_eq!(list.calculate_align_column(&config), 18);
+    }
+
+    #[test]
+    fn align_column_empty_list() {
+        let list = List {
+            description: None,
+            groups: vec![],
+        };
+        let config = RenderConfig::default();
+        // 4 + 0 + 4 = 8
+        assert_eq!(list.calculate_align_column(&config), 8);
+    }
+
+    #[test]
+    fn align_column_unicode_width() {
+        let list = List {
+            description: None,
+            groups: vec![ListGroup {
+                header: ListGroupHeader { name: None },
+                tasks: vec![
+                    ListTask { name: "日本語".into(), description: Some("desc".into()) },
+                    ListTask { name: "abc".into(), description: Some("desc".into()) },
+                ],
+            }],
+        };
+        let config = RenderConfig::default();
+        // "日本語" = 6 display columns (3 chars × 2 width each)
+        // 4 + 6 + 4 = 14
+        assert_eq!(list.calculate_align_column(&config), 14);
+    }
+
+    #[test]
+    fn align_column_across_groups() {
+        let list = List {
+            description: None,
+            groups: vec![
+                ListGroup {
+                    header: ListGroupHeader { name: Some("group1".into()) },
+                    tasks: vec![
+                        ListTask { name: "ab".into(), description: None },
+                    ],
+                },
+                ListGroup {
+                    header: ListGroupHeader { name: Some("group2".into()) },
+                    tasks: vec![
+                        ListTask { name: "abcdef".into(), description: None },
+                    ],
+                },
+            ],
+        };
+        let config = RenderConfig::default();
+        // 4 + 6 + 4 = 14
+        assert_eq!(list.calculate_align_column(&config), 14);
+    }
+}

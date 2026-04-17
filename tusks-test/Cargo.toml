@@ -17,6 +17,7 @@ clap = { workspace = true, features = ["env"] }
 [dev-dependencies]
 assert_cmd.workspace = true
 predicates.workspace = true
+trybuild = "1.0.116"
 
 [features]
 debug = ["tusks/debug"]

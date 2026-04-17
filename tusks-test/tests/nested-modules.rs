@@ -219,3 +219,75 @@ fn test_invalid_nesting() {
         .failure()
         .stderr(predicate::str::contains("unrecognized subcommand"));
 }
+
+// --- Additional edge case tests ---
+
+#[test]
+fn test_no_subcommand_at_root() {
+    cli()
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_no_subcommand_in_module() {
+    cli()
+        .args(&["database"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_no_subcommand_in_nested_module() {
+    cli()
+        .args(&["database", "query"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_level2_help_shows_level3() {
+    cli()
+        .args(&["level1", "level2", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("command"))
+        .stdout(predicate::str::contains("level3"));
+}
+
+#[test]
+fn test_server_config_help() {
+    cli()
+        .args(&["server", "config", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("show"))
+        .stdout(predicate::str::contains("update"));
+}
+
+#[test]
+fn test_database_migrate_help() {
+    cli()
+        .args(&["database", "migrate", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("up"))
+        .stdout(predicate::str::contains("down"));
+}
+
+#[test]
+fn test_wrong_module_path() {
+    cli()
+        .args(&["server", "query", "list"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_command_in_wrong_module() {
+    // "connect" exists in database, not in server
+    cli()
+        .args(&["server", "connect", "--connection", "test"])
+        .assert()
+        .failure();
+}

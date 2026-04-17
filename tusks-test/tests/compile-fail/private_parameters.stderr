@@ -1,0 +1,5 @@
+error: Parameters struct must be public
+ --> tests/compile-fail/private_parameters.rs:5:12
+  |
+5 |     struct Parameters<'a> {
+  |            ^^^^^^^^^^

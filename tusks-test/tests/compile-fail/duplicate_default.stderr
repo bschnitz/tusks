@@ -1,0 +1,5 @@
+error: only one function can be marked with #[default]
+  --> tests/compile-fail/duplicate_default.rs:10:5
+   |
+10 |     #[default]
+   |     ^^^^^^^^^^

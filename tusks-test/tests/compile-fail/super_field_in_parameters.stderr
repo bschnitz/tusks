@@ -1,0 +1,5 @@
+error: super_ field is not allowed in Parameters struct. It will be added programmatically.
+ --> tests/compile-fail/super_field_in_parameters.rs:6:13
+  |
+6 |         pub super_: &'a str,
+  |             ^^^^^^

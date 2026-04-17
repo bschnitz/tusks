@@ -12,7 +12,7 @@ impl TusksModule {
     /// # Examples
     /// 
     /// For a function `fn my_func(arg1: String, arg2: i32)` this generates:
-    /// ```rust
+    /// ```ignore
     /// Some(cli::Commands::MyFunction { arg1: p1, arg2: p2 }) => {
     ///     super::my_func(p1.clone(), p2.clone());
     /// }
@@ -20,7 +20,7 @@ impl TusksModule {
     /// 
     /// For a function with parameters `fn my_func(params: &Parameters, arg1: String)`
     /// this generates:
-    /// ```rust
+    /// ```ignore
     /// Some(cli::Commands::MyFunction { arg1: p1 }) => {
     ///     super::my_func(&parameters, p1.clone());
     /// }
@@ -137,7 +137,7 @@ impl TusksModule {
     /// # Examples
     /// 
     /// For function `fn my_func(params: &Params, arg1: String, arg2: i32)`:
-    /// ```rust
+    /// ```ignore
     /// [("arg1", "p1"), ("arg2", "p2")]
     /// ```
     fn build_pattern_bindings(&self, tusk: &Tusk) -> Vec<(syn::Ident, syn::Ident)> {
@@ -169,7 +169,7 @@ impl TusksModule {
     /// # Examples
     /// 
     /// For bindings `[("arg1", "p1"), ("arg2", "p2")]`:
-    /// ```rust
+    /// ```ignore
     /// ["arg1: p1", "arg2: p2"]
     /// ```
     pub fn build_pattern_fields(
@@ -193,7 +193,7 @@ impl TusksModule {
     /// # Examples
     /// 
     /// For function with parameters:
-    /// ```rust
+    /// ```ignore
     /// [&parameters, p1.clone(), p2.clone()]
     /// ```
     fn build_function_arguments(

@@ -312,3 +312,204 @@ fn test_version_output() {
         .success()
         .stdout(predicate::str::contains("1.0.0"));
 }
+
+// --- Edge case tests ---
+
+#[test]
+fn test_types_empty_string() {
+    cli()
+        .args(&["types", "", "1", "0", "0.0"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("String: \n"));
+}
+
+#[test]
+fn test_types_unicode_string() {
+    cli()
+        .args(&["types", "日本語テスト", "42", "0", "1.5"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("String: 日本語テスト"));
+}
+
+#[test]
+fn test_types_u32_zero() {
+    cli()
+        .args(&["types", "test", "0", "0", "0.0"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Number (u32): 0"));
+}
+
+#[test]
+fn test_types_u32_max() {
+    cli()
+        .args(&["types", "test", "4294967295", "0", "0.0"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Number (u32): 4294967295"));
+}
+
+#[test]
+fn test_types_u32_overflow() {
+    cli()
+        .args(&["types", "test", "4294967296", "0", "0.0"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_types_negative_for_unsigned() {
+    cli()
+        .args(&["types", "test", "-1", "0", "0.0"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_types_i32_negative() {
+    cli()
+        .args(&["types", "--flag", "test", "1", "--", "-2147483648", "0.0"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Signed (i32): -2147483648"));
+}
+
+#[test]
+fn test_types_float_negative() {
+    cli()
+        .args(&["types", "--flag", "test", "1", "--", "-1", "-3.14"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Float (f64): -3.14"));
+}
+
+#[test]
+fn test_optional_empty_string_value() {
+    cli()
+        .args(&["optional", "req", "--opt", ""])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Optional: Some(\"\")"));
+}
+
+#[test]
+fn test_defaults_override_with_empty() {
+    cli()
+        .args(&["defaults", "--file", "", "--level", ""])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("File: \n"))
+        .stdout(predicate::str::contains("Level: \n"));
+}
+
+#[test]
+fn test_multiple_empty_files_list() {
+    cli()
+        .args(&["multiple", "--files", "single"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Files: [\"single\"]"));
+}
+
+#[test]
+fn test_ranges_boundary_min() {
+    cli()
+        .args(&["ranges", "--small=1", "--signed=-50"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Small: 1"))
+        .stdout(predicate::str::contains("Signed: -50"));
+}
+
+#[test]
+fn test_ranges_boundary_max() {
+    cli()
+        .args(&["ranges", "--small=100", "--signed=50"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Small: 100"))
+        .stdout(predicate::str::contains("Signed: 50"));
+}
+
+#[test]
+fn test_ranges_below_min() {
+    cli()
+        .args(&["ranges", "--small=0", "--signed=0"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("0 is not in 1..=100"));
+}
+
+#[test]
+fn test_unknown_subcommand() {
+    cli()
+        .args(&["nonexistent"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_parser_percentage_zero() {
+    cli()
+        .args(&["parser", "--percentage", "0", "--port", "1024"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Percentage: 0%"));
+}
+
+#[test]
+fn test_parser_percentage_max() {
+    cli()
+        .args(&["parser", "--percentage", "100", "--port", "1024"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Percentage: 100%"));
+}
+
+#[test]
+fn test_parser_port_boundary() {
+    cli()
+        .args(&["parser", "--percentage", "50", "--port", "1024"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Port: 1024"));
+}
+
+#[test]
+fn test_parser_port_below_boundary() {
+    cli()
+        .args(&["parser", "--percentage", "50", "--port", "1023"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Port must be 1024 or higher"));
+}
+
+#[test]
+fn test_positional_missing_required() {
+    cli()
+        .args(&["positional", "first"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_flags_no_flags_all_false() {
+    cli()
+        .args(&["flags"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Verbose: false"))
+        .stdout(predicate::str::contains("Quiet: false"))
+        .stdout(predicate::str::contains("Debug: false"));
+}
+
+#[test]
+fn test_types_string_with_spaces() {
+    cli()
+        .args(&["types", "hello world", "1", "0", "0.0"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("String: hello world"));
+}

@@ -245,7 +245,7 @@ mod default_function {
     }
 
 
-    // Helper function to check if a type is Vec<String>
+    /// Helper function to check if a type is Vec<String>
     fn is_vec_string(type_path: &syn::TypePath) -> bool {
         let Some(segment) = type_path.path.segments.last() else {
             return false;
@@ -268,5 +268,189 @@ mod default_function {
         };
 
         inner_type.path.is_ident("String")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_fn(code: &str) -> ItemFn {
+        syn::parse_str::<ItemFn>(code).unwrap()
+    }
+
+    // --- Type checking helpers ---
+
+    fn parse_type(code: &str) -> syn::Type {
+        syn::parse_str::<syn::Type>(code).unwrap()
+    }
+
+    #[test]
+    fn is_u8_type_accepts_u8() {
+        assert!(Tusk::is_u8_type(&parse_type("u8")));
+    }
+
+    #[test]
+    fn is_u8_type_rejects_u32() {
+        assert!(!Tusk::is_u8_type(&parse_type("u32")));
+    }
+
+    #[test]
+    fn is_u8_type_rejects_string() {
+        assert!(!Tusk::is_u8_type(&parse_type("String")));
+    }
+
+    #[test]
+    fn is_option_u8_accepts_option_u8() {
+        assert!(Tusk::is_option_u8_type(&parse_type("Option<u8>")));
+    }
+
+    #[test]
+    fn is_option_u8_rejects_option_u32() {
+        assert!(!Tusk::is_option_u8_type(&parse_type("Option<u32>")));
+    }
+
+    #[test]
+    fn is_option_u8_rejects_option_string() {
+        assert!(!Tusk::is_option_u8_type(&parse_type("Option<String>")));
+    }
+
+    #[test]
+    fn is_option_u8_rejects_bare_u8() {
+        assert!(!Tusk::is_option_u8_type(&parse_type("u8")));
+    }
+
+    #[test]
+    fn is_option_u8_rejects_vec_u8() {
+        assert!(!Tusk::is_option_u8_type(&parse_type("Vec<u8>")));
+    }
+
+    // --- Tusk::from_fn ---
+
+    #[test]
+    fn from_fn_public_no_return() {
+        let f = parse_fn("pub fn hello() {}");
+        let result = Tusk::from_fn(f, false, false).unwrap();
+        assert!(result.is_some());
+        assert!(!result.unwrap().is_default);
+    }
+
+    #[test]
+    fn from_fn_public_returns_u8() {
+        let f = parse_fn("pub fn hello() -> u8 { 0 }");
+        let result = Tusk::from_fn(f, false, false).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn from_fn_public_returns_option_u8() {
+        let f = parse_fn("pub fn hello() -> Option<u8> { None }");
+        let result = Tusk::from_fn(f, false, false).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn from_fn_rejects_invalid_return_type() {
+        let f = parse_fn("pub fn hello() -> String { String::new() }");
+        let err = Tusk::from_fn(f, false, false).unwrap_err();
+        assert!(err.to_string().contains("must return (), u8, or Option<u8>"));
+    }
+
+    #[test]
+    fn from_fn_rejects_i32_return() {
+        let f = parse_fn("pub fn hello() -> i32 { 0 }");
+        let err = Tusk::from_fn(f, false, false).unwrap_err();
+        assert!(err.to_string().contains("must return (), u8, or Option<u8>"));
+    }
+
+    #[test]
+    fn from_fn_skips_private() {
+        let f = parse_fn("fn hello() {}");
+        let result = Tusk::from_fn(f, false, false).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn from_fn_skips_skip_attribute() {
+        let f = parse_fn("#[skip] pub fn hello() {}");
+        let result = Tusk::from_fn(f, false, false).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn from_fn_default_attribute() {
+        let f = parse_fn("#[default] pub fn hello() {}");
+        let result = Tusk::from_fn(f, false, false).unwrap();
+        assert!(result.is_some());
+        assert!(result.unwrap().is_default);
+    }
+
+    #[test]
+    fn from_fn_duplicate_default_errors() {
+        let f = parse_fn("#[default] pub fn hello() {}");
+        let err = Tusk::from_fn(f, true, false).unwrap_err();
+        assert!(err.to_string().contains("only one function can be marked with #[default]"));
+    }
+
+    // --- Default function argument validation ---
+
+    #[test]
+    fn default_fn_zero_args_ok() {
+        let f = parse_fn("#[default] pub fn hello() {}");
+        assert!(Tusk::from_fn(f, false, false).is_ok());
+    }
+
+    #[test]
+    fn default_fn_parameters_arg_ok() {
+        let f = parse_fn("#[default] pub fn hello(p: &Parameters) {}");
+        assert!(Tusk::from_fn(f, false, false).is_ok());
+    }
+
+    #[test]
+    fn default_fn_vec_string_without_external_subcommands_fails() {
+        let f = parse_fn("#[default] pub fn hello(args: Vec<String>) {}");
+        let err = Tusk::from_fn(f, false, false).unwrap_err();
+        assert!(err.to_string().contains("&Parameters"));
+    }
+
+    #[test]
+    fn default_fn_vec_string_with_external_subcommands_ok() {
+        let f = parse_fn("#[default] pub fn hello(args: Vec<String>) {}");
+        assert!(Tusk::from_fn(f, false, true).is_ok());
+    }
+
+    #[test]
+    fn default_fn_two_args_with_external_subcommands_ok() {
+        let f = parse_fn("#[default] pub fn hello(p: &Parameters, args: Vec<String>) {}");
+        assert!(Tusk::from_fn(f, false, true).is_ok());
+    }
+
+    #[test]
+    fn default_fn_two_args_without_external_subcommands_fails() {
+        let f = parse_fn("#[default] pub fn hello(p: &Parameters, args: Vec<String>) {}");
+        let err = Tusk::from_fn(f, false, false).unwrap_err();
+        assert!(err.to_string().contains("&Parameters"));
+    }
+
+    #[test]
+    fn default_fn_three_args_fails() {
+        let f = parse_fn("#[default] pub fn hello(a: String, b: String, c: String) {}");
+        let err = Tusk::from_fn(f, false, true).unwrap_err();
+        assert!(err.to_string().contains("at most two arguments"));
+    }
+
+    #[test]
+    fn default_fn_wrong_single_arg_type_fails() {
+        let f = parse_fn("#[default] pub fn hello(x: String) {}");
+        let err = Tusk::from_fn(f, false, false).unwrap_err();
+        assert!(err.to_string().contains("&Parameters"));
+    }
+
+    #[test]
+    fn default_fn_two_args_wrong_order_fails() {
+        // Vec<String> first, &Parameters second — wrong order
+        let f = parse_fn("#[default] pub fn hello(args: Vec<String>, p: &Parameters) {}");
+        let err = Tusk::from_fn(f, false, true).unwrap_err();
+        assert!(err.to_string().contains("(&Parameters, Vec<String>)"));
     }
 }

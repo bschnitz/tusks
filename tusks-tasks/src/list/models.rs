@@ -43,3 +43,18 @@ pub struct List {
     pub description: Option<String>,
     pub groups: Vec<ListGroup>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn render_config_defaults() {
+        let config = RenderConfig::default();
+        assert_eq!(config.min_gap, 4);
+        assert_eq!(config.task_indent, 4);
+        assert_eq!(config.header_indent, 2);
+        assert_eq!(config.span_token, '.');
+        assert!(config.use_colors);
+    }
+}

@@ -1,0 +1,5 @@
+error: all fields in Parameters struct must be & references
+ --> tests/compile-fail/non_reference_parameter_field.rs:6:19
+  |
+6 |         pub name: String,
+  |                   ^^^^^^

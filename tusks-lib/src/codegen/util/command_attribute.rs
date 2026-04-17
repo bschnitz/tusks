@@ -11,7 +11,7 @@ use quote::quote;
 
 impl TusksModule {
     /// Example 1 - Root module of tusks
-    /// ```rust
+    /// ```ignore
     /// #[command(name = "tasks")] /// <===== here =====
     ///     pub struct Cli {
     ///         #[arg(long)]
@@ -24,7 +24,7 @@ impl TusksModule {
     /// ```
     ///
     /// Example 2 - This is a submodule-subcommand:
-    /// ```rust
+    /// ```ignore
     /// pub enum Commands {
     ///     /// ... other subcommands and submodule-subcommands
     ///     #[command(name = "level1")] /// <===== here =====
@@ -52,7 +52,7 @@ impl TusksModule {
     }
 
     /// Example 1 - Root module of tusks
-    /// ```rust
+    /// ```ignore
     /// #[command(name = "tasks")] /// see generate_command_attribute
     ///     pub struct Cli {
     ///         #[arg(long)]
@@ -65,7 +65,7 @@ impl TusksModule {
     /// ```
     ///
     /// Example 2 - This is a submodule-subcommand:
-    /// ```rust
+    /// ```ignore
     /// pub enum Commands {
     ///     /// ... other subcommands and submodule-subcommands
     ///     #[command(name = "level1")] /// see generate_command_attribute
@@ -91,7 +91,7 @@ impl TusksModule {
     }
 
     /// Example:
-    /// ```rust
+    /// ```ignore
     /// pub enum Commands {
     ///     // ... other non-external subcommands ...
     ///     #[command(flatten)]
@@ -118,7 +118,7 @@ impl Tusk {
 
 impl ExternalModule {
     /// Example:
-    /// ```rust
+    /// ```ignore
     /// pub enum ExternalCommands {
     ///    #[command(name = "ext2")]
     ///    #[allow(non_camel_case_types)]
