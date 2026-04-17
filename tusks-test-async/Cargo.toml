@@ -1,0 +1,13 @@
+[package]
+name = "tusks-test-async"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+tusks = { path = "../tusks", features = ["async"] }
+clap = "4.5.53"
+
+[dev-dependencies]
+assert_cmd = "2.1.1"
+predicates = "3.1.3"

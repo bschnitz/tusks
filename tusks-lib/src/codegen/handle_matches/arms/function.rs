@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote};
+use quote::quote;
 
 use crate::codegen::module_path::ModulePath;
 use crate::codegen::util::enum_util::to_variant_ident;
@@ -83,16 +83,17 @@ impl TusksModule {
         );
         let func_name = &tusk.func.sig.ident;
         let func_path = path.super_path_to(func_name);
+        let maybe_await = if tusk.is_async { quote! { .await } } else { quote! {} };
 
         match &tusk.func.sig.output {
             syn::ReturnType::Default => {
-                quote! { #func_path(#(#func_args),*); None }
+                quote! { #func_path(#(#func_args),*)#maybe_await; None }
             }
             syn::ReturnType::Type(_, ty) => {
                 if Tusk::is_u8_type(ty) {
-                    quote! { Some(#func_path(#(#func_args),*)) }
+                    quote! { Some(#func_path(#(#func_args),*)#maybe_await) }
                 } else if Tusk::is_option_u8_type(ty) {
-                    quote! { #func_path(#(#func_args),*) }
+                    quote! { #func_path(#(#func_args),*)#maybe_await }
                 } else {
                     quote! { None }
                 }

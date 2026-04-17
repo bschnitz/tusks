@@ -1,0 +1,5 @@
+error: async command functions require the `async` feature. Add `tusks = { version = "...", features = ["async"] }` to your Cargo.toml
+ --> tests/compile-fail/async_without_feature.rs:5:9
+  |
+5 |     pub async fn hello() {
+  |         ^^^^^

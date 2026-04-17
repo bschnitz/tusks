@@ -1,5 +1,6 @@
 use syn::{Item, ItemFn, ItemMod, parse_quote};
 use syn::{Attribute, Meta};
+use quote::quote;
 
 use crate::{AttributeValue, attribute::models::TasksConfig};
 
@@ -7,7 +8,7 @@ pub fn add_use_statements(module: &mut ItemMod) {
     let use_statement: Item = parse_quote! {
         use ::tusks::clap::{CommandFactory, Parser};
     };
-    
+
     if let Some((_, ref mut items)) = module.content {
         items.insert(0, use_statement);
     }
@@ -17,7 +18,7 @@ pub fn set_allow_external_subcommands(module: &mut ItemMod) {
     if module.get_attribute_bool("command", "allow_external_subcommands") {
         return;
     }
-    
+
     // Find existing #[command(...)] attribute
     if let Some(attr) = module.attrs.iter_mut().find(|a| a.path().is_ident("command")) {
         match &mut attr.meta {
@@ -53,19 +54,26 @@ pub fn add_execute_task_function(module: &mut ItemMod, config: &TasksConfig) {
     let max_groupsize = &config.max_groupsize;
     let max_depth = &config.max_depth;
     let use_colors = &config.use_colors;
-    let function: ItemFn = parse_quote! {
+
+    let (maybe_async, maybe_await) = if cfg!(feature = "async") {
+        (quote! { async }, quote! { .await })
+    } else {
+        (quote! {}, quote! {})
+    };
+
+    let tokens = quote! {
         #[command(about = "Execute a task", hide=true)]
         #[default]
-        pub fn _execute_task(external_args: Vec<String>) -> Option<u8> {
+        pub #maybe_async fn _execute_task(external_args: Vec<String>) -> Option<u8> {
             let command = __internal_tusks_module::cli::Cli::command();
             if let Some(first) = external_args.first() {
                 let mut transformed_arguments = vec![command.get_name().to_string()];
                 transformed_arguments.extend(first.split(#separator).map(|s| s.to_string()));
                 transformed_arguments.extend_from_slice(&external_args[1..]);
                 let cli = __internal_tusks_module::cli::Cli::parse_from(transformed_arguments);
-                return __internal_tusks_module::handle_matches(&cli);
+                return __internal_tusks_module::handle_matches(&cli)#maybe_await;
             }
-            
+
             let task_list = ::tusks::tasks::task_list::models::TaskList::from_command(
                 &command,
                 #separator.to_string(),
@@ -78,7 +86,9 @@ pub fn add_execute_task_function(module: &mut ItemMod, config: &TasksConfig) {
             Some(0)
         }
     };
-    
+
+    let function: ItemFn = syn::parse2(tokens).expect("failed to parse _execute_task");
+
     if let Some((_, ref mut items)) = module.content {
         items.push(Item::Fn(function));
     }
@@ -89,9 +99,15 @@ pub fn add_show_help_for_task(module: &mut ItemMod, config: &TasksConfig) {
     let max_groupsize = &config.max_groupsize;
     let max_depth = &config.max_depth;
 
-    let function: ItemFn = parse_quote! {
+    let (maybe_async, maybe_await) = if cfg!(feature = "async") {
+        (quote! { async }, quote! { .await })
+    } else {
+        (quote! {}, quote! {})
+    };
+
+    let tokens = quote! {
         #[command(about = "Show the help for a task", name="h", hide=true)]
-        pub fn _show_help_for_task(#[arg()] task: Option<String>) {
+        pub #maybe_async fn _show_help_for_task(#[arg()] task: Option<String>) {
             if let Some(task) = task {
                 let command = __internal_tusks_module::cli::Cli::command();
                 let parts: Vec<&str> = task.split(#separator).collect();
@@ -102,7 +118,7 @@ pub fn add_show_help_for_task(module: &mut ItemMod, config: &TasksConfig) {
                     .collect();
 
                 let cli = __internal_tusks_module::cli::Cli::parse_from(args);
-                __internal_tusks_module::handle_matches(&cli);
+                __internal_tusks_module::handle_matches(&cli)#maybe_await;
             }
             else {
                 let command = __internal_tusks_module::cli::Cli::command();
@@ -116,6 +132,8 @@ pub fn add_show_help_for_task(module: &mut ItemMod, config: &TasksConfig) {
             }
         }
     };
+
+    let function: ItemFn = syn::parse2(tokens).expect("failed to parse _show_help_for_task");
 
     if let Some((_, ref mut items)) = module.content {
         items.push(Item::Fn(function));

@@ -15,3 +15,8 @@ clap.workspace = true
 
 [features]
 debug = ["tusks-macro/debug"]
+async = ["tusks-macro/async", "dep:tokio"]
+
+[dependencies.tokio]
+workspace = true
+optional = true

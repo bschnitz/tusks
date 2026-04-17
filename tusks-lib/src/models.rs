@@ -41,7 +41,9 @@ pub struct Tusk {
     /// The underlying function
     pub func: ItemFn,
 
-    pub is_default: bool
+    pub is_default: bool,
+
+    pub is_async: bool,
 }
 
 /// Represents an externally imported module

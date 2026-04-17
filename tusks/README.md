@@ -22,6 +22,7 @@ If You just want a quick example head over to the [Comprehensive Example](#compr
   - [9. Tasks Mode (Ruby Rake-Style)](#9-tasks-mode-ruby-rake-style)
   - [10. Command Attributes for Documentation](#10-command-attributes-for-documentation)
   - [11. Default Functions for Modules](#11-default-functions-for-modules)
+  - [12. Async Commands](#12-async-commands)
 - [Comprehensive Example](#comprehensive-example)
 - [License](#license)
 - [Contributions](#contributions)
@@ -1210,6 +1211,67 @@ $ my-cli git status --repository myrepo
   This is a built-in command
   ```
 
+### 12. Async Commands
+
+Tusks supports async command functions. Enable the `async` feature to use them:
+
+```toml
+[dependencies]
+tusks = { version = "2.1", features = ["async"] }
+```
+
+With the feature enabled, you can write async functions as commands:
+
+```rust
+use tusks::tusks;
+
+#[tusks(root)]
+#[command(about = "Async CLI")]
+pub mod cli {
+    /// Fetch data from a URL
+    pub async fn fetch(url: String) {
+        let data = do_async_fetch(&url).await;
+        println!("Fetched {} bytes from {}", data.len(), url);
+    }
+
+    /// Sync commands work alongside async ones
+    pub fn version() {
+        println!("v1.0.0");
+    }
+
+    #[command(about = "Database commands")]
+    pub mod db {
+        /// Async works in nested modules too
+        pub async fn migrate(version: String) {
+            run_migrations(&version).await;
+            println!("Migrated to {}", version);
+        }
+    }
+}
+
+fn main() -> std::process::ExitCode {
+    // exec_cli() automatically creates a tokio runtime when needed
+    std::process::ExitCode::from(cli::exec_cli().unwrap_or(0) as u8)
+}
+```
+
+**Usage:**
+```bash
+$ my-cli fetch https://example.com
+Fetched 1256 bytes from https://example.com
+
+$ my-cli db migrate v2.0
+Migrated to v2.0
+```
+
+#### How it works
+
+- `exec_cli()` automatically creates a tokio runtime and uses `block_on` to drive the async dispatch
+- The generated `handle_matches` function becomes `async fn` when the feature is enabled
+- Sync functions work normally inside async context — no changes needed
+- All return types (`()`, `u8`, `Option<u8>`) work the same with async
+- Without the `async` feature, using `async fn` produces a clear compile error
+
 ## Comprehensive Example
 
 Here's a complete example demonstrating most of Tusks' features in a single application:
@@ -1635,6 +1697,7 @@ Tusks is organized as a Cargo workspace with five crates:
 | `tusks-lib` | Core library: parsing module ASTs and generating clap code |
 | `tusks-tasks` | Runtime library for task-mode: grouping, formatting, and printing task lists |
 | `tusks-test` | Integration tests and example binaries (not published) |
+| `tusks-test-async` | Async feature tests (excluded from workspace, tested separately) |
 
 ### Architecture
 
@@ -1666,6 +1729,9 @@ cargo test -p tusks-test --test tasks
 
 # Run compile-fail tests (verifies error messages for invalid macro input)
 cargo test -p tusks-test --test compile_fail
+
+# Run async feature tests (separate from workspace due to feature unification)
+cd tusks-test-async && cargo test
 
 # Format and lint
 cargo fmt
@@ -1718,3 +1784,10 @@ These use `trybuild` to verify that invalid macro input produces clear compiler 
 | `non_reference_parameter_field.rs` | `String` field (not `&String`) is rejected |
 | `super_field_in_parameters.rs` | Manual `super_` field is rejected (auto-generated) |
 | `unknown_tusks_attribute.rs` | `#[tusks(nonexistent)]` is rejected |
+| `async_without_feature.rs` | `async fn` without `async` feature is rejected |
+
+**Async tests** (`tusks-test-async/tests/`, run separately with `cd tusks-test-async && cargo test`):
+
+| File | Tests | What is tested |
+|------|-------|----------------|
+| `async_basic.rs` | 8 | Async commands, mixed sync/async, nested async, return types |

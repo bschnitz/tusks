@@ -159,9 +159,21 @@ fn insert_internal_module(
     let cli_content = tusks_module.build_cli(Vec::new(), attr.debug);
     let handle_matches = tusks_module.build_handle_matches(attr.root);
 
-    let exec_cli = match attr.root {
-        false => quote! {},
-        true => quote! {
+    let exec_cli = if !attr.root {
+        quote! {}
+    } else if cfg!(feature = "async") {
+        quote! {
+            pub fn exec_cli() -> Option<u8> {
+                use ::tusks::clap::Parser;
+
+                let cli = cli::Cli::parse();
+                ::tusks::tokio::runtime::Runtime::new()
+                    .expect("failed to create tokio runtime")
+                    .block_on(handle_matches(&cli))
+            }
+        }
+    } else {
+        quote! {
             pub fn exec_cli() -> Option<u8> {
                 use ::tusks::clap::Parser;
 

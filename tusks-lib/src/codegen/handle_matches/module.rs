@@ -10,13 +10,19 @@ use super::HandleMatchesCodegen;
 
 impl HandleMatchesCodegen for TusksModule {
     fn build_handle_matches(&self, is_tusks_root: bool) -> TokenStream {
+        let maybe_async = if cfg!(feature = "async") {
+            quote! { async }
+        } else {
+            quote! {}
+        };
+
         let signature = if is_tusks_root {
             quote! {
-                pub fn handle_matches(cli: &cli::Cli) -> Option<u8>
+                pub #maybe_async fn handle_matches(cli: &cli::Cli) -> Option<u8>
             }
         } else {
             quote! {
-                pub fn handle_matches(
+                pub #maybe_async fn handle_matches(
                     cli: &cli::Cli,
                     super_parameters: &super::parent_::Parameters
                 ) -> Option<u8>
@@ -138,6 +144,7 @@ impl TusksModule {
 
     fn build_external_arm(&self, cli_path: &TokenStream, path: &ModulePath) -> TokenStream {
         let mut external_arms = Vec::new();
+        let maybe_await = if cfg!(feature = "async") { quote! { .await } } else { quote! {} };
 
         for ext_mod in &self.external_modules {
             let alias = &ext_mod.alias;
@@ -146,7 +153,7 @@ impl TusksModule {
 
             external_arms.push(quote! {
                 #cli_path::ExternalCommands::#variant_ident(cli) => {
-                    #external_path::__internal_tusks_module::handle_matches(cli, &parameters)
+                    #external_path::__internal_tusks_module::handle_matches(cli, &parameters)#maybe_await
                 }
             });
         }

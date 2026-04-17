@@ -18,6 +18,15 @@ impl Tusk {
         Self::validate_return_type(&item_fn.sig.output)?;
 
         let is_default = item_fn.has_attr("default");
+        let is_async = item_fn.sig.asyncness.is_some();
+
+        if is_async && !cfg!(feature = "async") {
+            return Err(syn::Error::new_spanned(
+                &item_fn.sig.asyncness,
+                "async command functions require the `async` feature. \
+                 Add `tusks = { version = \"...\", features = [\"async\"] }` to your Cargo.toml"
+            ));
+        }
 
         if is_default {
             default_function::validate(&item_fn, default_exists, allow_external_subcommands)?;
@@ -25,7 +34,8 @@ impl Tusk {
 
         Ok(Some(Tusk {
             func: item_fn,
-            is_default
+            is_default,
+            is_async,
         }))
     }
     
@@ -452,5 +462,30 @@ mod tests {
         let f = parse_fn("#[default] pub fn hello(args: Vec<String>, p: &Parameters) {}");
         let err = Tusk::from_fn(f, false, true).unwrap_err();
         assert!(err.to_string().contains("(&Parameters, Vec<String>)"));
+    }
+
+    // --- Async detection ---
+
+    #[test]
+    fn sync_fn_is_not_async() {
+        let f = parse_fn("pub fn hello() {}");
+        let tusk = Tusk::from_fn(f, false, false).unwrap().unwrap();
+        assert!(!tusk.is_async);
+    }
+
+    #[test]
+    #[cfg(feature = "async")]
+    fn async_fn_detected() {
+        let f = parse_fn("pub async fn hello() {}");
+        let tusk = Tusk::from_fn(f, false, false).unwrap().unwrap();
+        assert!(tusk.is_async);
+    }
+
+    #[test]
+    #[cfg(not(feature = "async"))]
+    fn async_fn_without_feature_errors() {
+        let f = parse_fn("pub async fn hello() {}");
+        let err = Tusk::from_fn(f, false, false).unwrap_err();
+        assert!(err.to_string().contains("async"));
     }
 }
