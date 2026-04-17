@@ -1,488 +1,1720 @@
-# Tusks Macro Documentation
+# Tusks
 
-## 1. Motivation
+Tusks allows you to define CLIs easily and idiomatically through a Rust module and function structure.
 
-The tusks macro is designed to simplify the creation of complex command-line interfaces (CLIs) in Rust by providing a declarative approach to defining commands, subcommands, and shared parameters. It eliminates the need for manual clap setup and boilerplate code, allowing developers to focus on business logic rather than CLI framework configuration.
+If You just want a quick example head over to the [Comprehensive Example](#comprehensive-example) section.
 
-### Why use tusks?
+## Table of Contents
 
-- **Declarative Syntax**: Define your CLI structure using Rust attributes and modules
-- **Automatic Parameter Chaining**: Share parameters across commands and subcommands
-- **Hierarchical Structure**: Naturally map Rust module structure to CLI command hierarchy
-- **Type Safety**: Leverage Rust's type system for argument validation
-- **Reduced Boilerplate**: No need to manually configure clap parsers
-- **External Module Integration**: Easily include subcommands from other files
+- [Motivation](#motivation)
+- [Installation](#installation)
+- [Core Concepts](#core-concepts)
+- [Relationship with Clap](#relationship-with-clap)
+- [Features and Examples](#features-and-examples)
+  - [1. Simple Root Module Definition](#1-simple-root-module-definition)
+  - [2. Nested Modules (Subcommands)](#2-nested-modules-subcommands)
+  - [3. Root Parameters with Parameters Struct](#3-root-parameters-with-parameters-struct)
+  - [4. Module-Level Parameters](#4-module-level-parameters)
+  - [5. External Modules](#5-external-modules)
+  - [6. Return Values and Exit Codes](#6-return-values-and-exit-codes)
+  - [7. Various Argument Types](#7-various-argument-types)
+  - [8. Custom Value Parsers](#8-custom-value-parsers)
+  - [9. Tasks Mode (Ruby Rake-Style)](#9-tasks-mode-ruby-rake-style)
+  - [10. Command Attributes for Documentation](#10-command-attributes-for-documentation)
+  - [11. Default Functions for Modules](#11-default-functions-for-modules)
+- [Comprehensive Example](#comprehensive-example)
+- [License](#license)
+- [Contributions](#contributions)
+- [Trivia](#trivia)
 
-The macro processes your Rust code structure and automatically generates the corresponding clap-based CLI, handling argument parsing, subcommand routing, and parameter sharing.
+## Motivation
 
-## 2. Simple CLI Example
+Creating complex CLI applications with nested commands and shared parameters can quickly become unwieldy. Tusks solves this problem by providing a declarative syntax for CLI structures that:
 
-Let's start with a basic CLI that has two commands without subcommands or shared parameters.
+- **Naturally maps hierarchical command structures**
+- **Automatically manages parameter chaining** across multiple levels
+- **Uses Clap** under the hood but eliminates boilerplate code
+- **Supports modular organization** through external modules
+- **Guarantees type safety** through Rust/Clap's type system
 
-### Basic Structure
+Instead of manually managing Clap subcommands and creating match statements, you simply define modules and functions – Tusks takes care of the rest.
+
+> **Want to see it in action?** Check out the [comprehensive example](#comprehensive-example) at the end of this document.
+
+## Installation
+
+```toml
+[dependencies]
+tusks = "2.1"
+```
+
+## Core Concepts
+
+Tusks is based on four main concepts:
+
+1. **Modules as Commands/Subcommands**: Rust modules automatically become CLI commands. Modules serve to hierarchically group functions as subcommands.
+2. **Functions as Commands/Subcommands**: Public functions in modules become executable CLI commands/subcommands. Function arguments are automatically translated into CLI parameters.
+3. **Parameters Struct for Command Arguments**: The `Parameters` struct defines arguments at the module level that apply to the respective command/subcommand. These arguments are automatically available to all underlying subcommands.
+4. **External Modules**: External modules, i.e., modules in other files, can be easily integrated into the current CLI structure, even recursively!
+
+The CLI is started with `cli::exec_cli()`, which parses the command line arguments and executes the corresponding commands. The function always returns `Option<u8>`, which can be used as an exit code.
+
+## Relationship with Clap
+
+Tusks is a high-level wrapper around [Clap](https://docs.rs/clap/), the popular CLI parsing framework for Rust. Many of Clap's features are retained.
+
+- `#[arg()]` attributes for argument configuration
+- `#[command()]` attributes for subcommand descriptions
+- Data types are parsed as in Clap
+- Automatic help generation
+- Type-safe parsing
+
+Tusks generates Clap code internally.
+
+## Features and Examples
+
+### 1. Simple Root Module Definition
+
+The `#[tusks(root)]` attribute marks a module as the CLI entry point. The CLI is started with `cli::exec_cli()`.
 
 ```rust
 use tusks::tusks;
 
 #[tusks(root)]
 #[command(
-    about = "Simple CLI example",
-    version = "1.0.0",
-    author = "Your Name"
+    about = "My CLI tool",
+    version = "1.0.0"
 )]
 pub mod cli {
-    // Command 1: Hello command
-    #[command(about = "Prints a greeting")]
-    pub fn hello() {
-        println!("Hello, world!");
-    }
-
-    // Command 2: Add command with arguments
-    #[command(about = "Adds two numbers")]
-    pub fn add(#[arg(long)] a: i32, #[arg(long)] b: i32) -> u8 {
-        println!("{} + {} = {}", a, b, a + b);
-        0  // Return exit code
+    /// A simple command
+    pub fn hello(name: String) {
+        println!("Hello, {}!", name);
     }
 }
 
 fn main() -> std::process::ExitCode {
+    // exec_cli() starts the CLI and returns Option<u8>
     std::process::ExitCode::from(cli::exec_cli().unwrap_or(0) as u8)
 }
 ```
 
-### Required Elements
-
-1. **Root Module**: Must be marked with `#[tusks(root)]`
-2. **Public Module**: The module must be `pub`
-3. **Command Functions**: Public functions marked with `#[command(...)]`
-4. **Argument Attributes**: Use `#[arg(...)]` for command-line arguments
-5. **Execution**: Call `exec_cli()` to run the CLI
-
-### Generated CLI
-
-This code generates a CLI with the following structure:
-
+**Usage:**
 ```bash
-$ cargo run -- --help
-Simple CLI example
-
-USAGE:
-    cli [OPTIONS] <COMMAND>
-
-OPTIONS:
-    --help       Print help information
-    --version    Print version information
-
-COMMANDS:
-    add     Adds two numbers
-    hello   Prints a greeting
+$ my-cli hello Alice
+Hello, Alice!
 ```
 
-### Command Usage Examples
+#### Visibility and #[skip]
 
-```bash
-# Run hello command
-$ cargo run -- hello
-Hello, world!
-
-# Run add command with arguments
-$ cargo run -- add --a 5 --b 3
-5 + 3 = 8
-
-# Get help for specific command
-$ cargo run -- add --help
-Adds two numbers
-
-USAGE:
-    cli add [OPTIONS] --a <a> --b <b>
-
-OPTIONS:
-    --a <a>    First number
-    --b <b>    Second number
-    --help     Print help information
-```
-
-## 3. Function Return Values
-
-### Requirements and Restrictions
-
-Functions that become CLI commands have specific return type requirements:
-
-1. **Unit Type (`()`)**: No return value, function executes and exits with code 0
-2. **`u8`**: Return an exit code (0 for success, non-zero for errors)
-3. **`Option<u8>`**: Return an optional exit code (None for success, Some(code) for errors)
-
-### Why These Restrictions?
-
-- **Consistent Exit Codes**: Provides a standard way to communicate command success/failure
-- **Simple Error Handling**: Makes it easy to propagate error conditions
-- **Clap Integration**: Matches clap's expected return value patterns
-
-### Examples
+Only **public** (`pub`) modules and functions are used for CLI construction. Private functions are automatically ignored:
 
 ```rust
-// Returns unit type (implicit 0 exit code)
-#[command(about = "Unit return example")]
-pub fn unit_example() {
-    println!("This command succeeds");
-}
-
-// Returns explicit exit code
-#[command(about = "Explicit exit code")]
-pub fn explicit_code() -> u8 {
-    println!("This command returns 1");
-    1  // Error code
-}
-
-// Returns optional exit code
-#[command(about = "Optional exit code")]
-pub fn optional_code() -> Option<u8> {
-    println!("This command may fail");
-    Some(2)  // Error code
-}
-```
-
-## 4. Subcommands through Nested Modules
-
-Subcommands are created by nesting modules within your CLI module. Each nested module becomes a subcommand group.
-
-### Structure
-
-```rust
-use tusks::tusks;
-
 #[tusks(root)]
-#[command(about = "Subcommand example")]
 pub mod cli {
-    // Root command
-    #[command(about = "Root command")]
-    pub fn root() {
-        println!("Root command executed");
+    /// This command is available
+    pub fn public_command() {
+        println!("This is a CLI command");
     }
-
-    // Subcommand group: user
-    #[command(about = "User management commands")]
-    pub mod user {
-        // Subcommand: create
-        #[command(about = "Create a new user")]
-        pub fn create(#[arg(long)] name: String) {
-            println!("Creating user: {}", name);
-        }
-
-        // Subcommand: delete
-        #[command(about = "Delete a user")]
-        pub fn delete(#[arg(long)] id: u32) {
-            println!("Deleting user with ID: {}", id);
-        }
-    }
-
-    // Another subcommand group: system
-    #[command(about = "System management commands")]
-    pub mod system {
-        #[command(about = "Restart the system")]
-        pub fn restart() {
-            println!("System restarting...");
-        }
+    
+    /// This function is NOT available (not pub)
+    fn private_helper() {
+        println!("This is not a CLI command");
     }
 }
-
-fn main() -> std::process::ExitCode {
-    std::process::ExitCode::from(cli::exec_cli().unwrap_or(0) as u8)
-}
 ```
 
-### Generated CLI Structure
-
-```bash
-$ cargo run -- --help
-Subcommand example
-
-USAGE:
-    cli [OPTIONS] <COMMAND>
-
-OPTIONS:
-    --help    Print help information
-
-COMMANDS:
-    root      Root command
-    system    System management commands
-    user      User management commands
-```
-
-### Subcommand Usage
-
-```bash
-# Root command
-$ cargo run -- root
-Root command executed
-
-# User subcommand
-$ cargo run -- user create --name alice
-Creating user: alice
-
-# System subcommand
-$ cargo run -- system restart
-System restarting...
-
-# Help for subcommand
-$ cargo run -- user --help
-User management commands
-
-USAGE:
-    cli user <COMMAND>
-
-COMMANDS:
-    create    Create a new user
-    delete    Delete a user
-```
-
-## 5. Parameters Struct
-
-The `Parameters` struct allows you to define shared configuration that can be accessed by multiple commands within the same module.
-
-### Basic Usage
+With the `#[skip]` attribute, you can also exclude public functions from CLI parsing:
 
 ```rust
-use tusks::tusks;
-
 #[tusks(root)]
-#[command(about = "Parameters example")]
 pub mod cli {
-    // Parameters struct for shared configuration
+    /// CLI command
+    pub fn deploy(target: String) {
+        let config = load_config();
+        // ... deployment logic ...
+    }
+    
+    /// Helper function - not available as CLI command
+    #[skip]
+    pub fn load_config() -> Config {
+        // This function is public (for other modules),
+        // but not a CLI command
+        Config::from_file("config.toml")
+    }
+}
+```
+
+The `#[skip]` attribute also works for modules:
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    /// Available subcommand
+    pub mod deploy { /* ... */ }
+    
+    /// Not available as subcommand
+    #[skip]
+    pub mod internal_utils { /* ... */ }
+}
+```
+
+### 2. Nested Modules (Subcommands)
+
+Modules automatically become subcommands and serve to hierarchically group functions.
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    #[command(about = "Database operations")]
+    pub mod database {
+        /// Migrate database
+        pub fn migrate(version: String) {
+            println!("Migrating database to version {}", version);
+        }
+        
+        /// Backup database
+        pub fn backup(path: String) {
+            println!("Backing up database to {}", path);
+        }
+    }
+    
+    #[command(about = "Deployment operations")]
+    pub mod deploy {
+        /// Deploy to staging
+        pub fn staging() {
+            println!("Deploying to staging environment");
+        }
+        
+        /// Deploy to production
+        pub fn production() {
+            println!("Deploying to production environment");
+        }
+    }
+}
+```
+
+**Usage:**
+```bash
+$ my-cli database migrate v2.0
+Migrating database to version v2.0
+
+$ my-cli deploy production
+Deploying to production environment
+
+$ my-cli --help
+My CLI tool
+
+Usage: my-cli <COMMAND>
+
+Commands:
+  database  Database operations
+  deploy    Deployment operations
+  help      Print this message or the help of the given subcommand(s)
+```
+
+Modules can be nested arbitrarily deep:
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    pub mod cloud {
+        pub mod aws {
+            pub mod s3 {
+                /// Upload file to S3
+                pub fn upload(file: String, bucket: String) {
+                    println!("Uploading {} to bucket {}", file, bucket);
+                }
+            }
+        }
+    }
+}
+```
+
+**Usage:**
+```bash
+$ my-cli cloud aws s3 upload file.txt my-bucket
+Uploading file.txt to bucket my-bucket
+```
+
+With a `Parameters` struct, you can define common parameters that are available to all commands.
+
+```rust
+#[tusks(root)]
+pub mod cli {
     pub struct Parameters<'a> {
         #[arg(long)]
-        pub config_file: &'a String,
+        pub verbose: &'a bool,
         
-        #[arg(long, default_value = "false")]
+        #[arg(long)]
+        pub config: &'a Option<String>,
+    }
+
+    /// Command with access to root parameters
+    pub fn deploy(params: &Parameters, target: String) {
+        if *params.verbose {
+            println!("Deploying to {} with config {:?}", 
+                     target, params.config);
+        }
+    }
+}
+```
+
+**Usage:**
+```bash
+$ my-cli --verbose --config prod.toml deploy production
+Deploying to production with config Some("prod.toml")
+```
+
+#### Important Notes on Parameters
+
+- **Optional**: The `Parameters` struct is completely optional. You only need it if you want to define parameters at the current module level or access parent parameters.
+
+- **Lifetime required**: If you define a `Parameters` struct, it must always have the lifetime `<'a>`:
+  ```rust
+  pub struct Parameters<'a> {  // <'a> is mandatory
+      #[arg(long)]
+      pub my_param: &'a String,
+  }
+  ```
+
+- **Automatic `super_` field**: Tusks automatically adds a `super_` field that references the parent Parameters struct. You must **not** define this field yourself:
+  ```rust
+  pub struct Parameters<'a> {
+      #[arg(long)]
+      pub my_param: &'a String,
+      // NOT: pub super_: &'a ParentParameters<'a>  ❌
+  }
+  ```
+
+- **Implicit Parameters structs**: Even if you don't define a `Parameters` struct at a level, it exists in the background. This means that `super_.super_` always works to access parameters two levels up:
+  ```rust
+  pub mod level1 {
+      // No Parameters struct defined here
+      
+      pub mod level2 {
+          pub struct Parameters<'a> {
+              #[arg(long)]
+              pub level2_param: &'a String,
+          }
+          
+          pub fn command(params: &Parameters) {
+              // super_.super_ still works!
+              println!("{}", params.super_.super_.root_param);
+          }
+      }
+  }
+  ```
+
+- **Parameters as function argument**: The `Parameters` struct may only be specified as the **first argument** of a function and is optional. If you don't need it, you can omit it:
+  ```rust
+  // With Parameters (must be first argument)
+  pub fn command1(params: &Parameters, name: String) { }
+  
+  // Without Parameters
+  pub fn command2(name: String, age: u32) { }
+  
+  // WRONG: Parameters not in first position ❌
+  pub fn command3(name: String, params: &Parameters) { }
+  ```
+
+### 3. Root Parameters with Parameters Struct
+
+With a `Parameters` struct, you can define common parameters that are available to all commands.
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    pub struct Parameters<'a> {
+        #[arg(long)]
+        pub verbose: &'a bool,
+        
+        #[arg(long)]
+        pub config: &'a Option<String>,
+    }
+
+    /// Command with access to root parameters
+    pub fn deploy(params: &Parameters, target: String) {
+        if *params.verbose {
+            println!("Deploying to {} with config {:?}", 
+                     target, params.config);
+        }
+    }
+}
+```
+
+**Usage:**
+```bash
+$ my-cli --verbose --config prod.toml deploy production
+Deploying to production with config Some("prod.toml")
+```
+
+Modules automatically become subcommands with their own parameters.
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    pub struct Parameters<'a> {
+        #[arg(long)]
         pub verbose: &'a bool,
     }
 
-    // Command using parameters
-    #[command(about = "Show configuration")]
-    pub fn show_config(params: &Parameters) {
-        println!("Config file: {}", params.config_file);
-        if *params.verbose {
-            println!("[VERBOSE] Verbose mode enabled");
-        }
-    }
-
-    // Another command using the same parameters
-    #[command(about = "Process data")]
-    pub fn process_data(params: &Parameters, #[arg(long)] input: String) {
-        println!("Processing {} with config: {}", input, params.config_file);
-    }
-}
-
-fn main() -> std::process::ExitCode {
-    std::process::ExitCode::from(cli::exec_cli().unwrap_or(0) as u8)
-}
-```
-
-### Parameter Chaining
-
-Parameters can be defined at different module levels, creating a hierarchical chain:
-
-```rust
-use tusks::tusks;
-
-#[tusks(root)]
-#[command(about = "Parameter chaining example")]
-pub mod cli {
-    // Root parameters (accessible by all commands)
-    pub struct Parameters<'a> {
-        #[arg(long)]
-        pub root_config: &'a String,
-    }
-
-    #[command(about = "Root command")]
-    pub fn root_command(params: &Parameters) {
-        println!("Root config: {}", params.root_config);
-    }
-
-    // Submodule with its own parameters
-    #[command(about = "Level 1 submodule")]
-    pub mod level1 {
-        // Level 1 parameters (can access root via super_)
+    #[command(about = "Database operations")]
+    pub mod database {
         pub struct Parameters<'a> {
             #[arg(long)]
-            pub level1_setting: &'a i32,
+            pub connection: &'a String,
         }
 
-        #[command(about = "Level 1 command")]
-        pub fn level1_command(params: &Parameters) {
-            // Access root parameters through super_
-            println!("Level 1 setting: {}", params.level1_setting);
-            println!("Root config: {}", params.super_.root_config);
-        }
-
-        // Deeper nested module
-        #[command(about = "Level 2 submodule")]
-        pub mod level2 {
-            // Level 2 parameters
-            pub struct Parameters<'a> {
-                #[arg(long)]
-                pub level2_flag: &'a bool,
-            }
-
-            #[command(about = "Level 2 command")]
-            pub fn level2_command(params: &Parameters) {
-                // Access level1 parameters via super_
-                // Access root parameters via super_.super_
-                println!("Level 2 flag: {}", params.level2_flag);
-                println!("Level 1 setting: {}", params.super_.level1_setting);
-                println!("Root config: {}", params.super_.super_.root_config);
+        /// Migrate database
+        pub fn migrate(params: &Parameters) {
+            println!("Migrating database: {}", params.connection);
+            
+            // Access parent parameters via super_
+            if *params.super_.verbose {
+                println!("Verbose mode enabled");
             }
         }
     }
 }
 ```
 
-### Key Rules
-
-1. **Name**: Must be exactly `Parameters` (This name is thus reseverd in all
-   tusks-modules and submodules).
-2. **Visibility**: Must be `pub`
-3. **Field Types**: All fields must be reference types (`&T`)
-4. **No super_ Field**: Cannot contain a `super_` field (it's added automatically)
-5. **Optional**: Only needed if you want to share parameters
-
-Even if You do not create the struct manually, it will always be added
-automatically. This means, that You can always use `_super` to navigate to the
-toplevel `Parameters`-structs, even if You didn't specify intermediate levels.
-
-## 6. Subcommands through External Modules
-
-External modules allow you to define subcommands in separate files and include them in your CLI.
-
-### File Structure
-
-```
-src/
-├── main.rs          # Main CLI
-└── external.rs      # External subcommand module
+**Usage:**
+```bash
+$ my-cli --verbose database --connection "localhost:5432" migrate
+Migrating database: localhost:5432
+Verbose mode enabled
 ```
 
-### Syntax and Implementation
+### 4. Module-Level Parameters
 
-**main.rs:**
+Each module can define its own `Parameters` struct to define specific arguments for the respective subcommand. These parameters are automatically available to all underlying subcommands.
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    pub struct Parameters<'a> {
+        #[arg(long)]
+        pub verbose: &'a bool,
+    }
+
+    #[command(about = "Database operations")]
+    pub mod database {
+        pub struct Parameters<'a> {
+            #[arg(long)]
+            pub connection: &'a String,
+        }
+
+        /// Migrate database
+        pub fn migrate(params: &Parameters) {
+            println!("Migrating database: {}", params.connection);
+            
+            // Access parent parameters via super_
+            if *params.super_.verbose {
+                println!("Verbose mode enabled");
+            }
+        }
+    }
+}
+```
+
+**Usage:**
+```bash
+$ my-cli --verbose database --connection "localhost:5432" migrate
+Migrating database: localhost:5432
+Verbose mode enabled
+```
+
+Parameters can be passed through an arbitrary number of levels.
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    pub struct Parameters<'a> {
+        #[arg(long)]
+        pub env: &'a String,
+    }
+
+    pub mod services {
+        pub struct Parameters<'a> {
+            #[arg(long)]
+            pub region: &'a String,
+        }
+
+        pub mod kubernetes {
+            pub struct Parameters<'a> {
+                #[arg(long)]
+                pub namespace: &'a String,
+            }
+
+            /// Deploy to k8s
+            pub fn deploy(params: &Parameters, image: String) {
+                // Access all levels:
+                println!("Environment: {}", params.super_.super_.env);
+                println!("Region: {}", params.super_.region);
+                println!("Namespace: {}", params.namespace);
+                println!("Image: {}", image);
+            }
+        }
+    }
+}
+```
+
+**Usage:**
+```bash
+$ my-cli --env production services --region eu-west-1 kubernetes --namespace default deploy my-app:v1.0
+Environment: production
+Region: eu-west-1
+Namespace: default
+Image: my-app:v1.0
+```
+
+### 5. External Modules
+
+External modules allow distributing CLI structures across multiple files. This is particularly useful for organizing large CLIs and promoting code reusability.
+
+An external module differs from the root module in that it does **not** have the `root` flag in the `#[tusks()]` attribute. Instead, it must include a `parent_` reference to its parent module to enable parameter chaining.
+
+**src/main.rs:**
+```rust
+#[tusks(root)]  // Root module with 'root' flag
+pub mod cli {
+    pub struct Parameters<'a> {
+        #[arg(long)]
+        pub verbose: &'a bool,
+    }
+
+    /// Git operations
+    #[command(about = "Git commands")]
+    pub use crate::git::cli as git;
+}
+```
+
+**src/git.rs:**
 ```rust
 use tusks::tusks;
 
-#[tusks(root)]
-#[command(about = "External module example")]
+#[tusks()]  // External module WITHOUT 'root' flag
 pub mod cli {
-    // Include external module as subcommand
-    #[command(about = "External user management")]
-    pub use crate::external::user as user;
+    // Parent reference is required for parameter chaining
+    pub use crate::cli as parent_;
+
+    pub struct Parameters<'a> {
+        #[arg(long)]
+        pub branch: &'a String,
+    }
+
+    /// Commit changes
+    pub fn commit(params: &Parameters, message: String) {
+        println!("Committing on branch {}: {}", 
+                 params.branch, message);
+        
+        // Access root parameters via super_
+        if *params.super_.verbose {
+            println!("Verbose output enabled");
+        }
+    }
+}
+```
+
+**Usage:**
+```bash
+$ my-cli --verbose git --branch main commit "Fix bug"
+Committing on branch main: Fix bug
+Verbose output enabled
+```
+
+#### Important Notes on External Modules
+
+- **Parent reference required**: External modules must always contain a `parent_` reference to their parent module. The alias `parent_` must be used.
+  ```rust
+  pub use crate::cli as parent_;  // Required!
+  ```
+  This reference also enables parameter chaining via `super_`.
+
+- **No `root` flag**: External modules use `#[tusks()]` **without** the `root` flag. Only the main module (the entry point for the CLI) uses `#[tusks(root)]`.
+
+- **Customize subcommand names**: The name of the subcommand is determined by the name used during import:
+  
+  ```rust
+  // Subcommand is named "cli" (name of imported module)
+  pub use crate::git::cli;
+  
+  // Subcommand is named "git" (with alias)
+  pub use crate::git::cli as git;
+  
+  // Subcommand is named "vcs" (with different alias)
+  pub use crate::git::cli as vcs;
+  
+  // Customize subcommand name via attribute, alias is ignored
+  #[command(name = "version-control")]
+  pub use crate::git::cli as git;
+  ```
+
+- **Arbitrary nesting**: External modules can themselves include external modules:
+  
+  **src/git.rs:**
+  ```rust
+  #[tusks()]
+  pub mod cli {
+      pub use crate::cli as parent_;
+      
+      // Git includes the advanced module
+      #[command(about = "Advanced git operations")]
+      pub use crate::git_advanced::cli as advanced;
+  }
+  ```
+  
+  **src/git_advanced.rs:**
+  ```rust
+  #[tusks()]
+  pub mod cli {
+      // Reference to git module
+      pub use crate::git::cli as parent_;
+      
+      pub fn rebase(/* ... */) { }
+  }
+  ```
+  
+  **Invocation:**
+  ```bash
+  $ my-cli git advanced rebase
+  ```
+
+### 6. Return Values and Exit Codes
+
+Commands can return values that are used as exit codes. Allowed return types are `()`, `u8`, and `Option<u8>`. The return value is always returned by `cli::exec_cli()` as `Option<u8>`.
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    pub fn success() {
+        println!("Operation completed successfully");
+    }
+    
+    /// Command with u8 return value
+    pub fn check_health() -> u8 {
+        println!("Running health checks...");
+        
+        if all_systems_ok() {
+            println!("✓ All systems operational");
+            0  // Success
+        } else {
+            println!("✗ System degraded");
+            1  // Error
+        }
+    }
+    
+    /// Command with Option<u8> return value
+    pub fn validate(file: String) -> Option<u8> {
+        println!("Validating {}...", file);
+        
+        match check_file(&file) {
+            Ok(_) => {
+                println!("✓ Valid");
+                Some(0)  // Success
+            }
+            Err(e) if e.is_warning() => {
+                println!("⚠ Warnings found");
+                Some(2)  // Warning
+            }
+            Err(_) => {
+                println!("✗ Invalid");
+                None
+            }
+        }
+    }
 }
 
 fn main() -> std::process::ExitCode {
+    // exec_cli() returns the return value of the executed command
+    // In this case, explicitly returns 0 if no return value exists
     std::process::ExitCode::from(cli::exec_cli().unwrap_or(0) as u8)
 }
 ```
 
-**external.rs:**
+**Usage:**
+```bash
+$ my-cli check-health
+Running health checks...
+✗ System degraded
+$ echo $?
+1
+
+$ my-cli validate config.toml
+Validating config.toml...
+✓ Valid
+$ echo $?
+0
+```
+
+### 7. Various Argument Types
+
+Tusks supports all Clap argument types.
+
 ```rust
-use tusks::tusks;
-
-#[tusks()]
-#[command(about = "User management commands")]
-pub mod user {
-    // Reference to parent module (required for parameter chaining)
-    pub use crate::cli as parent_;
-    
-    pub struct Parameters<'a> {
+#[tusks(root)]
+pub mod cli {
+    /// Complex command with various argument types
+    pub fn build(
+        #[arg(short, long)]
+        target: String,
+        
         #[arg(long)]
-        pub user_config: &'a String,
-    }
-
-    #[command(about = "Create user")]
-    pub fn create(params: &Parameters, #[arg(long)] name: String) {
-        println!("Creating user {} with config: {}", name, params.user_config);
-    }
-
-    #[command(about = "List users")]
-    pub fn list(params: &Parameters) {
-        println!("Listing users with config: {}", params.user_config);
+        features: Vec<String>,
+        
+        #[arg(long)]
+        release: bool,
+        
+        #[arg(long)]
+        jobs: Option<u32>,
+    ) {
+        println!("Building target: {}", target);
+        println!("Features: {:?}", features);
+        println!("Release mode: {}", release);
+        println!("Jobs: {:?}", jobs.unwrap_or(4));
     }
 }
 ```
 
-### Key Requirements
-
-1. **External Module**: Must be marked with `#[tusks()]` (empty attributes)
-2. **Parent Reference**: Must include `pub use crate::parent_module as parent_;`
-3. **Public Module**: The module must be `pub`
-4. **Parameter Chaining**: Can access parent parameters via `parent_`
-5. The subcommand created for an external is equal to it's name or it's alias
-   used when including it via `pub use path::to::external as alias`
-
-### Usage
-
+**Usage:**
 ```bash
-$ cargo run -- user create --name bob --user-config "users.json"
-Creating user bob with config: users.json
-
-$ cargo run -- user list --user-config "users.json" 
-Listing users with config: users.json
+$ my-cli build --target x86_64-linux --features async --features logging --release --jobs 8
+Building target: x86_64-linux
+Features: ["async", "logging"]
+Release mode: true
+Jobs: 8
 ```
 
-## 7. Relationship with Clap
+### 8. Custom Value Parsers
 
-The tusks macro is built on top of the clap library and automatically generates clap-based CLI structures. The syntax for the `#[command(...)]` and `#[arg(..)]` attributes is therefore the same as for clap.
+Clap's value parsers can be used to add custom validation.
 
-The `#[command(...)]`-Attribute can be specified on the root-module, it's
-submodules (including external modules) and functions.
+```rust
+#[tusks(root)]
+pub mod cli {
+    #[skip]  // This function is not a command
+    pub fn parse_port(s: &str) -> Result<u16, String> {
+        s.parse::<u16>()
+            .map_err(|_| "Port must be between 0 and 65535".into())
+    }
 
-### Integration Example
+    /// Start server
+    pub fn serve(
+        #[arg(value_parser = crate::cli::parse_port)]
+        port: u16
+    ) {
+        println!("Starting server on port {}", port);
+    }
+}
+```
 
+**Usage:**
+```bash
+$ my-cli serve 8080
+Starting server on port 8080
+
+$ my-cli serve invalid
+error: invalid value 'invalid' for '<PORT>': Port must be between 0 and 65535
+```
+
+### 9. Tasks Mode (Ruby Rake-Style)
+
+Tasks mode provides a simplified, flat CLI syntax in the style of Ruby Rake. Instead of nested subcommands, tasks can be invoked with a separator (default `.`).
+
+#### Activation
+
+Tasks mode is simply activated through the `tasks` attribute:
+
+```rust
+#[tusks(root, tasks)]
+#[command(about = "Task management tool")]
+pub mod tasks {
+    #[command(about = "Git operations")]
+    pub mod git {
+        /// Clone a repository
+        pub fn clone(url: String, path: Option<String>) {
+            println!("Cloning {} to {:?}", url, path);
+        }
+
+        /// Commit changes
+        pub fn commit(message: String) {
+            println!("Committing: {}", message);
+        }
+    }
+
+    #[command(about = "Docker operations")]
+    pub mod docker {
+        /// Build Docker image
+        pub fn build(context: String, tag: Option<String>) {
+            println!("Building from {} with tag {:?}", context, tag);
+        }
+    }
+}
+```
+
+#### Display Task List
+
+Without arguments, the CLI automatically shows all available tasks in a grouped overview:
+
+```bash
+$ tasks
+Task management tool
+
+  git
+    git.clone ..... Clone a repository
+    git.commit .... Commit changes
+
+  docker
+    docker.build .. Build Docker image
+```
+
+#### Flat Task Syntax
+
+Tasks can be invoked directly via their full path:
+
+```bash
+# Rake-style (with separator)
+$ tasks git.clone https://github.com/user/repo
+
+# Equivalent to traditional subcommand syntax
+$ tasks git clone https://github.com/user/repo
+```
+
+Both variants are fully interchangeable. The subcommand structure is preserved, so you can still use module-specific parameters:
+
+```bash
+$ tasks --root-param value git --git-option xyz clone https://...
+```
+
+#### Help for Tasks
+
+Help can be accessed in multiple ways:
+
+```bash
+# With 'h' prefix
+$ tasks h git.clone
+
+# With '-h' flag
+$ tasks git.clone -h
+
+# Traditional
+$ tasks git clone --help
+```
+
+All three variants display the same help:
+```
+Clone a repository
+
+Usage: tasks git clone <URL> [PATH]
+
+Arguments:
+  <URL>   Repository URL
+  [PATH]  Target path
+
+Options:
+  -h, --help  Print help
+```
+
+#### Configuring Task Grouping
+
+The task overview display can be configured to control how tasks are organized and presented:
+
+```rust
+#[tusks(root, tasks(max_groupsize=5, max_depth=20, separator=".", use_colors=true))]
+pub mod tasks {
+    // ...
+}
+```
+
+**Parameters:**
+
+- **`separator`** (default: `"."`) - Character(s) used to separate module levels in command names
+  ```bash
+  # With separator="."
+  $ tasks git.clone url
+  
+  # With separator=":"
+  $ tasks git:clone url
+  ```
+
+- **`use_colors`** (default: `true`)
+  If `true` (which is the default) the overview over all tasks is colored
+
+> [!NOTE]
+> The following part of this section is proably quite technical and not that
+> important. If the task overview is fine for your needs, it is advised to skip
+> it.
+
+- **`max_groupsize`** (default: `5`) - Threshold for creating subgroups in the task overview
+  
+  *This parameter only affects the task overview output, not command execution.*
+  
+  When a group contains **more than** `max_groupsize` **visible** tasks, they are organized into subgroups based on their module hierarchy. Hidden tasks (marked with `#[hidden]`) are excluded from this count.
+  
+  **Example with `max_groupsize=5`:**
+  ```bash
+  # Scenario: 4 visible tasks (+ 2 hidden tasks)
+  # 4 ≤ 5, so no grouping occurs - all tasks shown at root level
+  
+  Application Commands
+  
+    docker.build .. Build Docker image
+    docker.run .... Run Docker container
+    git.clone ..... Clone a repository
+    git.commit .... Commit changes
+  ```
+  
+  ```bash
+  # Scenario: 6 visible tasks (+ 2 hidden tasks)
+  # 6 > 5, so grouping by first module level occurs
+  
+  Application Commands
+  
+    docker
+
+      docker.build .. Build Docker image
+      docker.run .... Run Docker container
+      docker.stop ... Stop Docker container
+  
+    git
+
+      git.clone ..... Clone a repository
+      git.commit .... Commit changes
+      git.push ...... Push changes
+  ```
+
+- **`max_depth`** (default: `20`) - Maximum nesting depth for hierarchical grouping
+  
+  *This parameter only affects the task overview output, not command execution.*
+  
+  Controls how many levels deep the grouping can go. Each level corresponds to one module in the path hierarchy.
+  
+  **Example with `max_depth=1`:**
+  ```bash
+  # Deep module structure with 8 visible tasks
+  # docker.container.list, docker.container.logs, docker.image.build, docker.image.pull, etc.
+  # With max_depth=1, only first level grouping is allowed
+  
+  Application Commands
+  
+    docker
+
+      docker.container.list .. List containers
+      docker.container.logs .. Show container logs
+      docker.image.build ..... Build an image
+      docker.image.pull ...... Pull an image
+  ```
+  
+  ```bash
+  # Same structure with max_depth=2 and max_groupsize=3
+  # Second level grouping is allowed, creating subgroups
+  
+  Application Commands
+  
+    docker.container
+
+      docker.container.list .. List containers
+      docker.container.logs .. Show container logs
+  
+    docker.image
+
+      docker.image.build ..... Build an image
+      docker.image.pull ...... Pull an image
+  ```
+
+**Interaction between `max_groupsize` and `max_depth`:**
+
+Both parameters work together to control grouping behavior. **Both conditions must be met** for grouping to occur:
+
+1. The number of visible tasks must **exceed** `max_groupsize` (threshold condition)
+2. The current depth must be **less than** `max_depth` (depth limit)
+
+**`max_depth` takes precedence** - once the depth limit is reached, no further grouping occurs regardless of group size.
+
+**Example showing the interaction:**
+
+```bash
+# Configuration: max_groupsize=3, max_depth=2
+# Module structure with 12 visible tasks:
+# docker.container.alpine.create, docker.container.alpine.run, docker.container.alpine.stop
+# docker.container.ubuntu.create, docker.container.ubuntu.run, docker.container.ubuntu.stop
+# docker.image.alpine.build, docker.image.alpine.pull
+# docker.image.ubuntu.build, docker.image.ubuntu.pull, docker.image.ubuntu.push, docker.image.ubuntu.tag
+
+Application Commands
+
+  docker.container
+    # Depth 2 reached - no further grouping even though each subgroup has >3 tasks
+    docker.container.alpine.create
+    docker.container.alpine.run
+    docker.container.alpine.stop
+    docker.container.ubuntu.create
+    docker.container.ubuntu.run
+    docker.container.ubuntu.stop
+
+  docker.image
+    # Depth 2 reached - no further grouping
+    docker.image.alpine.build
+    docker.image.alpine.pull
+    docker.image.ubuntu.build
+    docker.image.ubuntu.pull
+    docker.image.ubuntu.push
+    docker.image.ubuntu.tag
+```
+
+```bash
+# Same structure with max_groupsize=3, max_depth=3
+# Now depth 3 is allowed, enabling finer grouping
+
+Application Commands
+
+  docker.container.alpine
+
+    docker.container.alpine.create
+    docker.container.alpine.run
+    docker.container.alpine.stop
+
+  docker.container.ubuntu
+
+    docker.container.ubuntu.create
+    docker.container.ubuntu.run
+    docker.container.ubuntu.stop
+
+  docker.image.alpine
+
+    docker.image.alpine.build
+    docker.image.alpine.pull
+
+  docker.image.ubuntu
+
+    docker.image.ubuntu.build
+    docker.image.ubuntu.pull
+    docker.image.ubuntu.push
+    docker.image.ubuntu.tag
+```
+
+**How the Grouping Algorithm Works:**
+
+1. **Check depth limit**: If `max_depth` is 0, stop grouping immediately
+2. **Count visible tasks**: If visible tasks ≤ `max_groupsize`, no grouping occurs - all tasks are displayed directly
+3. **Group by module prefix**: Tasks are grouped by their next module level (e.g., all `git.*` tasks together)
+4. **Recursive grouping**: Each group is evaluated recursively with `max_depth - 1`
+5. **Single-task optimization**: Groups containing only one visible task are automatically flattened into their parent group
+
+**Tip:** Start with the default values. Decrease `max_groupsize` for more granular grouping, or decrease `max_depth` to prevent overly nested displays with deeply nested module structures.
+
+#### Complete Example
+
+```rust
+use tusks::tusks;
+
+#[tusks(root, tasks(separator=".", max_groupsize=5, max_depth=10))]
+#[command(
+    about = "DevOps toolkit",
+    version = "1.0.0"
+)]
+pub mod tasks {
+    pub mod deploy {
+        /// Deploy to staging
+        pub fn staging(version: String) {
+            println!("Deploying {} to staging", version);
+        }
+
+        /// Deploy to production
+        pub fn production(version: String) {
+            println!("Deploying {} to production", version);
+        }
+    }
+
+    pub mod test {
+        /// Run unit tests
+        pub fn unit() {
+            println!("Running unit tests");
+        }
+
+        /// Run integration tests
+        pub fn integration() {
+            println!("Running integration tests");
+        }
+    }
+}
+
+fn main() -> std::process::ExitCode {
+    std::process::ExitCode::from(tasks::exec_cli().unwrap_or(0) as u8)
+}
+```
+
+**Usage:**
+```bash
+# Task overview
+$ tasks
+DevOps toolkit
+
+  deploy
+    deploy.staging      Deploy to staging
+    deploy.production   Deploy to production
+
+  test
+    test.unit          Run unit tests
+    test.integration   Run integration tests
+
+# Execute tasks (both syntaxes work)
+$ tasks deploy.staging v1.2.3
+$ tasks deploy staging v1.2.3
+
+# Display help
+$ tasks h deploy.production
+$ tasks deploy.production -h
+```
+
+### 10. Command Attributes for Documentation
+
+Use `#[command()]` attributes to define CLI documentation. This is a standard Clap feature and is mentioned here only as a common use case.
+
+```rust
+#[tusks(root)]
+#[command(
+    about = "Project management CLI",
+    long_about = "A comprehensive tool for managing development projects",
+    version = "2.0.0",
+    author = "Your Team <team@example.com>"
+)]
+pub mod cli {
+    /// Initialize new project
+    #[command(
+        about = "Create a new project",
+        long_about = "Initialize a new project with default structure and configuration"
+    )]
+    pub fn init(
+        #[arg(help = "Project name")]
+        name: String,
+        
+        #[arg(long, help = "Project template to use")]
+        template: Option<String>,
+    ) {
+        println!("Initializing project: {}", name);
+    }
+}
+```
+
+**Usage:**
+```bash
+$ my-cli --help
+Project management CLI
+
+A comprehensive tool for managing development projects
+
+Usage: my-cli [OPTIONS] <COMMAND>
+
+Commands:
+  init  Create a new project
+  help  Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```
+
+### 11. Default Functions for Modules
+
+With the `#[default]` attribute, you can define a function that is executed when a module is invoked without a specific subcommand.
+
+```rust
+#[tusks(root)]
+pub mod cli {
+    #[command(about = "Git operations")]
+    pub mod git {
+        pub struct Parameters<'a> {
+            #[arg(long)]
+            pub repository: &'a Option<String>,
+        }
+        
+        /// Default action when just "git" is called
+        #[default]
+        pub fn status(params: &Parameters) {
+            println!("Git status for {:?}", params.repository);
+            // Shows status
+        }
+        
+        /// Push changes
+        pub fn push(branch: String) {
+            println!("Pushing to {}", branch);
+        }
+        
+        /// Pull changes
+        pub fn pull(branch: String) {
+            println!("Pulling from {}", branch);
+        }
+    }
+}
+```
+
+**Usage:**
+```bash
+# Without subcommand - executes the default function
+$ my-cli git --repository myrepo
+Git status for Some("myrepo")
+
+# Equivalent to
+$ my-cli git status --repository myrepo
+```
+
+#### Restrictions for Default Functions
+
+- **Only Parameters allowed**: Default functions may have at most the `Parameters` struct of the current level as an argument. Additional parameters are not permitted:
+  ```rust
+  #[default]
+  pub fn default_action(params: &Parameters) { }  // ✓ Allowed
+  
+  #[default]
+  pub fn default_action() { }  // ✓ Allowed (without Parameters)
+  
+  #[default]
+  pub fn default_action(params: &Parameters, name: String) { }  // ❌ Not allowed
+  ```
+
+- **Exception: Allow External Subcommands**: If `allow_external_subcommands = true` is set for the module, the default function may additionally receive a `Vec<String>` argument containing all arguments of the external subcommand:
+  ```rust
+  #[command(about = "Command runner", allow_external_subcommands = true)]
+  pub mod run {
+      pub struct Parameters<'a> {
+          #[arg(long)]
+          pub verbose: &'a bool,
+      }
+      
+      #[default]
+      pub fn execute(params: &Parameters, args: Vec<String>) {
+          println!("Running external command with args: {:?}", args);
+          if *params.verbose {
+              println!("Verbose mode enabled");
+          }
+          // Executes external command with args
+      }
+      
+      /// Built-in command
+      pub fn builtin() {
+          println!("This is a built-in command");
+      }
+  }
+  ```
+  
+  **Usage:**
+  ```bash
+  # External subcommand (not defined) - default function with args
+  $ my-cli run --verbose custom-script --arg1 --arg2
+  Running external command with args: ["custom-script", "--arg1", "--arg2"]
+  Verbose mode enabled
+  
+  # Built-in subcommand
+  $ my-cli run builtin
+  This is a built-in command
+  ```
+
+## Comprehensive Example
+
+Here's a complete example demonstrating most of Tusks' features in a single application:
+
+**src/main.rs:**
 ```rust
 use tusks::tusks;
 
 #[tusks(root)]
 #[command(
-    about = "Advanced clap integration",
+    about = "DevOps automation toolkit",
+    long_about = "A comprehensive CLI for managing deployments, databases, and CI/CD pipelines",
     version = "1.0.0",
-    arg_required_else_help = true
+    author = "DevOps Team <devops@example.com>"
 )]
 pub mod cli {
-    pub struct Parameters<'a> {
-        #[arg(long, help = "Configuration file path")]
-        pub config: &'a String,
+    // Top-level command: Quick health check
+    /// Perform a quick system health check
+    pub fn health() -> u8 {
+        println!("Running system health checks...");
         
-        #[arg(short, long, default_value = "false")]
-        pub verbose: &'a bool,
+        // Simulate health check
+        let healthy = check_system_health();
+        
+        if healthy {
+            println!("✓ All systems operational");
+            0  // Success exit code
+        } else {
+            println!("✗ System issues detected");
+            1  // Error exit code
+        }
     }
 
-    #[command(
-        about = "Process data with custom options",
-        long_about = "This command processes input data with various options"
-    )]
-    pub fn process(
-        params: &Parameters,
-        #[arg(long, value_name = "INPUT", help = "Input file path")]
-        input: String,
-        
-        #[arg(long, value_parser = parse_number, help = "Processing count")]
-        count: u32
-    ) -> u8 {
-        println!("Processing {} with count {}", input, count);
-        if *params.verbose {
-            println!("[VERBOSE] Using config: {}", params.config);
+    // Submodule with multiple commands
+    #[command(about = "Database operations")]
+    pub mod database {
+        // Default command when just "database" is called
+        #[default]
+        /// Show database status (default action)
+        pub fn status(
+            #[arg(long, help = "Database connection string")]
+            connection: String,
+        ) {
+            println!("Database status for: {}", connection);
+            println!("Connection pool: 10/50");
+            println!("Active queries: 3");
         }
-        0
+
+        /// Migrate database to latest version
+        pub fn migrate(
+            #[arg(long, help = "Database connection string")]
+            connection: String,
+            #[arg(help = "Target migration version")]
+            version: String,
+            #[arg(long, help = "Perform dry-run without applying changes")]
+            dry_run: bool,
+        ) -> Option<u8> {
+            println!("Migrating database to version: {}", version);
+            println!("Connection: {}", connection);
+            
+            if dry_run {
+                println!("⚠ Dry-run mode - no changes applied");
+                return Some(0);
+            }
+            
+            // Simulate migration
+            let success = perform_migration(&version);
+            
+            if success {
+                println!("✓ Migration completed successfully");
+                Some(0)
+            } else {
+                println!("✗ Migration failed");
+                None
+            }
+        }
+
+        // Nested submodule
+        #[command(about = "Advanced database operations")]
+        pub mod advanced {
+            /// Optimize database tables
+            pub fn optimize(
+                #[arg(long, help = "Database connection string")]
+                connection: String,
+            ) -> u8 {
+                println!("Optimizing database: {}", connection);
+                println!("✓ Optimization completed");
+                0
+            }
+        }
+    }
+
+    // External module for deployment operations
+    #[command(about = "Deployment commands")]
+    pub use crate::deploy::cli as deploy;
+
+    // Helper function with custom value parser
+    #[skip]
+    pub fn parse_port(s: &str) -> Result<u16, String> {
+        let port: u16 = s.parse()
+            .map_err(|_| format!("'{}' is not a valid port number", s))?;
+        
+        if port < 1024 {
+            return Err("Port must be 1024 or higher".to_string());
+        }
+        
+        Ok(port)
+    }
+
+    // Helper function (not a command)
+    #[skip]
+    fn check_system_health() -> bool {
+        // Simulate health check
+        true
+    }
+
+    #[skip]
+    fn perform_migration(_version: &str) -> bool {
+        // Simulate migration
+        true
     }
 }
 
-// Custom parser function
-fn parse_number(s: &str) -> Result<u32, String> {
-    s.parse().map_err(|_| "Must be a positive number".into())
+fn main() -> std::process::ExitCode {
+    // Execute the CLI and use the return value as exit code
+    std::process::ExitCode::from(cli::exec_cli().unwrap_or(0) as u8)
 }
 ```
 
-## 7. Exclude Functions / Modules from the CLI
+**src/deploy.rs:**
+```rust
+use tusks::tusks;
 
-Private functions and modules are excluded from the CLI by default. All other
-functions and modules can be marked with the `#[skip]`-Attribute to exclude
-them. Making them invisible to the tusks-macro (and also removing any
-restrictions which would apply otherwise).
+#[tusks()]  // External module
+pub mod cli {
+    // Reference to parent module for parameter chaining
+    pub use crate::cli as parent_;
+
+    /// Deploy application to target environment
+    pub fn start(
+        #[arg(help = "Application version to deploy")]
+        version: String,
+        #[arg(long, help = "Target environment")]
+        environment: String,
+        #[arg(long, help = "Server port", value_parser = crate::cli::parse_port)]
+        port: Option<u16>,
+    ) -> u8 {
+        let port = port.unwrap_or(8080);
+        
+        println!("Deploying version {} to {}", version, environment);
+        println!("Server will listen on port: {}", port);
+        println!("✓ Deployment initiated");
+        0
+    }
+
+    /// Rollback to previous version
+    pub fn rollback(
+        #[arg(long, help = "Target environment")]
+        environment: String,
+    ) {
+        println!("Rolling back deployment in {}", environment);
+        println!("✓ Rollback completed");
+    }
+}
+```
+
+**Usage examples:**
+
+```bash
+# Top-level command
+$ my-cli health
+Running system health checks...
+✓ All systems operational
+
+# Default command (status is called automatically)
+$ my-cli database --connection "postgres://localhost/mydb"
+Database status for: postgres://localhost/mydb
+Connection pool: 10/50
+Active queries: 3
+
+# Explicit subcommand
+$ my-cli database status --connection "postgres://localhost/mydb"
+Database status for: postgres://localhost/mydb
+Connection pool: 10/50
+Active queries: 3
+
+# Migration with various argument types
+$ my-cli database migrate --connection "postgres://localhost/mydb" v2.0 --dry-run
+Migrating database to version: v2.0
+Connection: postgres://localhost/mydb
+⚠ Dry-run mode - no changes applied
+
+# Nested submodule command
+$ my-cli database advanced optimize --connection "postgres://localhost/mydb"
+Optimizing database: postgres://localhost/mydb
+✓ Optimization completed
+
+# External module with custom value parser
+$ my-cli deploy start v1.5.0 --environment production --port 8080
+Deploying version v1.5.0 to production
+Server will listen on port: 8080
+✓ Deployment initiated
+
+# Custom parser validation
+$ my-cli deploy start v1.4.0 --environment staging --port 80
+error: invalid value '80' for '--port <PORT>': Port must be 1024 or higher
+
+# Rollback command
+$ my-cli deploy rollback --environment production
+Rolling back deployment in production
+✓ Rollback completed
+```
+
+**Note:** This example demonstrates how arguments can be defined directly in function signatures. You can also define module-level parameters using a `Parameters` struct which would then be available to all commands within that module and automatically passed down to nested submodules. The parameters would be specified before the subcommand name:
+
+```bash
+# Example if database module had Parameters with --connection and --verbose:
+$ my-cli database --connection "..." --verbose migrate v2.0
+$ my-cli database --connection "..." status
+```
+
+For more details on how to define and use module-level parameters, see [Module-Level Parameters](#4-module-level-parameters).
+
+### Equivalent with Raw Clap Syntax
+
+Here's what the same CLI structure would look like using Clap's derive API directly (abbreviated for brevity):
+
+```rust
+#[derive(Parser)]
+#[command(
+    about = "DevOps automation toolkit",
+    long_about = "A comprehensive CLI for managing deployments, databases, and CI/CD pipelines",
+    version = "1.0.0",
+    author = "DevOps Team <devops@example.com>"
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Perform a quick system health check
+    Health,
+    
+    /// Database operations
+    Database {
+        #[command(subcommand)]
+        command: Option<DatabaseCommands>,
+    },
+    
+    /// Deployment commands
+    Deploy {
+        #[command(subcommand)]
+        command: DeployCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum DatabaseCommands {
+    /// Show database status
+    Status {
+        #[arg(long, help = "Database connection string")]
+        connection: String,
+    },
+    
+    /// Migrate database to latest version
+    Migrate {
+        #[arg(long, help = "Database connection string")]
+        connection: String,
+        version: String,
+        #[arg(long)]
+        dry_run: bool,
+    },
+    
+    /// Advanced database operations
+    Advanced {
+        #[command(subcommand)]
+        command: AdvancedCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum AdvancedCommands {
+    /// Optimize database tables
+    Optimize {
+        #[arg(long, help = "Database connection string")]
+        connection: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum DeployCommands {
+    /// Deploy application
+    Start {
+        version: String,
+        #[arg(long, help = "Target environment")]
+        environment: String,
+        #[arg(long, value_parser = parse_port)]
+        port: Option<u16>,
+    },
+    
+    /// Rollback to previous version
+    Rollback {
+        #[arg(long, help = "Target environment")]
+        environment: String,
+    },
+}
+
+fn main() -> std::process::ExitCode {
+    let cli = Cli::parse();
+    
+    // Manual dispatch logic
+    let exit_code = match cli.command {
+        Some(Commands::Health) => {
+            health()
+        }
+        Some(Commands::Database { command }) => {
+            match command {
+                Some(DatabaseCommands::Status { connection }) | None => {
+                    // Default command logic needed here
+                    database_status(&connection);
+                    0
+                }
+                Some(DatabaseCommands::Migrate { connection, version, dry_run }) => {
+                    database_migrate(&connection, &version, dry_run)
+                        .unwrap_or(1)
+                }
+                Some(DatabaseCommands::Advanced { command }) => {
+                    match command {
+                        AdvancedCommands::Optimize { connection } => {
+                            database_advanced_optimize(&connection)
+                        }
+                    }
+                }
+            }
+        }
+        Some(Commands::Deploy { command }) => {
+            match command {
+                DeployCommands::Start { version, environment, port } => {
+                    deploy_start(&version, &environment, port)
+                }
+                DeployCommands::Rollback { environment } => {
+                    deploy_rollback(&environment);
+                    0
+                }
+            }
+        }
+        None => {
+            // Show help when no command is provided
+            Cli::parse_from(&["cli", "--help"]);
+            0
+        }
+    };
+    
+    std::process::ExitCode::from(exit_code)
+}
+
+// All the handler functions need to be manually implemented
+fn health() -> u8 {
+    // Implementation
+    0
+}
+
+fn database_status(connection: &str) {
+    // Implementation
+}
+
+fn database_migrate(connection: &str, version: &str, dry_run: bool) -> Option<u8> {
+    // Implementation
+    Some(0)
+}
+
+fn database_advanced_optimize(connection: &str) -> u8 {
+    // Implementation
+    0
+}
+
+fn deploy_start(version: &str, environment: &str, port: Option<u16>) -> u8 {
+    // Implementation
+    0
+}
+
+fn deploy_rollback(environment: &str) {
+    // Implementation
+}
+```
+
+As you can see, Tusks eliminates:
+- Manual enum definitions for every command level
+- Repetitive match/dispatch logic
+- Manual parameter passing through the hierarchy
+- Boilerplate for default command handling
+
+## License
+
+MIT
+
+## Contributions
+
+Contributions are welcome! Please create an issue or pull request on GitHub.
+
+I'm still learning Rust. I always have an open ear for suggestions on best practices, code style, etc.
+
+I will try to respond to contributions, but as I work full-time with a wife and child, this will not always be possible in a timely manner.
+
+## Trivia
+
+This project originally came about because I've wanted to learn and use Rust for a long time, and also because I was looking for a replacement for Ruby Rake and Python Invoke that is idiomatic, future-oriented, and easy to use. The use of these tools is also always limited by the environment you're in. Often, the versions of interpreters and packages differ across various server environments. A compiled Rust application is much more flexible in this regard. However, there are also disadvantages. The effort and barrier to creating and extending a compiled application is higher than with a simple Python script. And of course, the appropriate toolchain must be available on the system where you develop. But Rust makes it quite easy with cargo.
+
+During development, I worked extensively with various AIs. Otherwise, this would not have been possible within a week with my existing basic knowledge, especially not for a project that relies so heavily on source code parsing and generation, i.e., the creation of macros. In some places, I performed some refactoring. In other places, I only superficially adapted or reviewed the code. Little code was actually written 100% by myself. This is an interesting experience for me, and you can certainly view it critically. However, I think I still learned a lot, and I'm actually quite satisfied with the code quality. If I had actually done everything myself, it would probably have turned out significantly worse (or simply not finished). But one should always keep in mind that I'm a Rust beginner. The way to write code in Rust, to structure it, the patterns used - all of this is definitely very different in many ways from many programming languages I've used before. Accordingly, this is a beginner's project.
+
+## Development
+
+### Workspace Structure
+
+Tusks is organized as a Cargo workspace with five crates:
+
+| Crate | Purpose |
+|-------|---------|
+| `tusks` | User-facing crate that re-exports the macro, clap, and tasks module |
+| `tusks-macro` | Proc-macro entry point (`#[tusks]` attribute) |
+| `tusks-lib` | Core library: parsing module ASTs and generating clap code |
+| `tusks-tasks` | Runtime library for task-mode: grouping, formatting, and printing task lists |
+| `tusks-test` | Integration tests and example binaries (not published) |
+
+### Architecture
+
+The macro follows a three-phase pipeline:
+
+1. **Parse** (`tusks-lib/src/parsing/`) — Convert `syn::ItemMod` into a `TusksModule` tree, validate return types, default functions, and Parameters structs.
+2. **Supplement** (`tusks-lib/src/codegen/parameters/`) — Create missing `Parameters` structs, add `super_` fields for parent access, add lifetime markers.
+3. **Generate** (`tusks-lib/src/codegen/cli/` and `codegen/handle_matches/`) — Emit the `__internal_tusks_module` containing clap `Cli` struct, `Commands` enum, and `handle_matches()` dispatch function.
+
+### Building and Testing
+
+```bash
+# Build everything
+cargo build --workspace
+
+# Run all tests (unit + integration, excludes doctests)
+cargo test --workspace --lib --tests
+
+# Run all tests including doctests
+cargo test --workspace
+
+# Run only unit tests for a specific crate
+cargo test -p tusks-tasks
+cargo test -p tusks-lib --lib
+
+# Run a specific integration test suite
+cargo test -p tusks-test --test arg
+cargo test -p tusks-test --test tasks
+
+# Run compile-fail tests (verifies error messages for invalid macro input)
+cargo test -p tusks-test --test compile_fail
+
+# Format and lint
+cargo fmt
+cargo clippy
+```
+
+### Test Overview
+
+The project has ~450 tests across multiple levels:
+
+**Unit tests** (in source files via `#[cfg(test)]`):
+
+| Location | Tests | What is tested |
+|----------|-------|----------------|
+| `tusks-tasks/src/task_list/models.rs` | 15 | Task sorting, collection operations, visibility filtering |
+| `tusks-tasks/src/task_list/init.rs` | 14 | Command extraction, grouping algorithm, collapsing, hidden tasks |
+| `tusks-tasks/src/list/conversion.rs` | 7 | TaskList-to-List conversion, separators, group headers |
+| `tusks-tasks/src/list/print.rs` | 4 | Alignment calculation, unicode width handling |
+| `tusks-tasks/src/list/models.rs` | 1 | RenderConfig defaults |
+| `tusks-lib/src/parsing/attribute/parse.rs` | 20 | `#[tusks(...)]` and `tasks(...)` attribute parsing |
+| `tusks-lib/src/parsing/tusk.rs` | 28 | Return type validation, default function argument rules, type checks |
+| `tusks-lib/src/parsing/parameters.rs` | 9 | Parameters struct validation (public, references, reserved fields) |
+
+**Integration tests** (`tusks-test/tests/`):
+
+| File | Tests | What is tested |
+|------|-------|----------------|
+| `basic.rs` | 13 | Simple commands, flags, help, version |
+| `arg.rs` | 52 | All argument types, edge cases (unicode, overflow, boundaries) |
+| `parameters.rs` | 26 | Parameter chaining across module levels |
+| `nested-modules.rs` | 31 | Deep nesting, help at every level, error paths |
+| `external-modules.rs` | 36 | External module integration, parameter passing |
+| `default-functions.rs` | 32 | Default command behavior, external subcommands |
+| `return-values.rs` | 39 | Exit codes, custom return values |
+| `command_attribute.rs` | 39 | Help text, about/long_about propagation |
+| `tasks-mode.rs` | 32 | Flat task syntax, traditional syntax, task list |
+| `tasks.rs` | 18 | Task list formatting, alignment, color disabling, sorting |
+| `integration_tests.rs` | 32 | Deeply nested parameter chains, external modules |
+
+**Compile-fail tests** (`tusks-test/tests/compile-fail/`):
+
+These use `trybuild` to verify that invalid macro input produces clear compiler errors:
+
+| File | What it verifies |
+|------|-----------------|
+| `invalid_return_type.rs` | `-> String` is rejected with helpful message |
+| `i32_return_type.rs` | `-> i32` is rejected (only `()`, `u8`, `Option<u8>` allowed) |
+| `duplicate_default.rs` | Two `#[default]` functions in one module are rejected |
+| `private_parameters.rs` | Non-`pub` Parameters struct is rejected |
+| `non_reference_parameter_field.rs` | `String` field (not `&String`) is rejected |
+| `super_field_in_parameters.rs` | Manual `super_` field is rejected (auto-generated) |
+| `unknown_tusks_attribute.rs` | `#[tusks(nonexistent)]` is rejected |

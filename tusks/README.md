@@ -1621,3 +1621,100 @@ I will try to respond to contributions, but as I work full-time with a wife and 
 This project originally came about because I've wanted to learn and use Rust for a long time, and also because I was looking for a replacement for Ruby Rake and Python Invoke that is idiomatic, future-oriented, and easy to use. The use of these tools is also always limited by the environment you're in. Often, the versions of interpreters and packages differ across various server environments. A compiled Rust application is much more flexible in this regard. However, there are also disadvantages. The effort and barrier to creating and extending a compiled application is higher than with a simple Python script. And of course, the appropriate toolchain must be available on the system where you develop. But Rust makes it quite easy with cargo.
 
 During development, I worked extensively with various AIs. Otherwise, this would not have been possible within a week with my existing basic knowledge, especially not for a project that relies so heavily on source code parsing and generation, i.e., the creation of macros. In some places, I performed some refactoring. In other places, I only superficially adapted or reviewed the code. Little code was actually written 100% by myself. This is an interesting experience for me, and you can certainly view it critically. However, I think I still learned a lot, and I'm actually quite satisfied with the code quality. If I had actually done everything myself, it would probably have turned out significantly worse (or simply not finished). But one should always keep in mind that I'm a Rust beginner. The way to write code in Rust, to structure it, the patterns used - all of this is definitely very different in many ways from many programming languages I've used before. Accordingly, this is a beginner's project.
+
+## Development
+
+### Workspace Structure
+
+Tusks is organized as a Cargo workspace with five crates:
+
+| Crate | Purpose |
+|-------|---------|
+| `tusks` | User-facing crate that re-exports the macro, clap, and tasks module |
+| `tusks-macro` | Proc-macro entry point (`#[tusks]` attribute) |
+| `tusks-lib` | Core library: parsing module ASTs and generating clap code |
+| `tusks-tasks` | Runtime library for task-mode: grouping, formatting, and printing task lists |
+| `tusks-test` | Integration tests and example binaries (not published) |
+
+### Architecture
+
+The macro follows a three-phase pipeline:
+
+1. **Parse** (`tusks-lib/src/parsing/`) — Convert `syn::ItemMod` into a `TusksModule` tree, validate return types, default functions, and Parameters structs.
+2. **Supplement** (`tusks-lib/src/codegen/parameters/`) — Create missing `Parameters` structs, add `super_` fields for parent access, add lifetime markers.
+3. **Generate** (`tusks-lib/src/codegen/cli/` and `codegen/handle_matches/`) — Emit the `__internal_tusks_module` containing clap `Cli` struct, `Commands` enum, and `handle_matches()` dispatch function.
+
+### Building and Testing
+
+```bash
+# Build everything
+cargo build --workspace
+
+# Run all tests (unit + integration, excludes doctests)
+cargo test --workspace --lib --tests
+
+# Run all tests including doctests
+cargo test --workspace
+
+# Run only unit tests for a specific crate
+cargo test -p tusks-tasks
+cargo test -p tusks-lib --lib
+
+# Run a specific integration test suite
+cargo test -p tusks-test --test arg
+cargo test -p tusks-test --test tasks
+
+# Run compile-fail tests (verifies error messages for invalid macro input)
+cargo test -p tusks-test --test compile_fail
+
+# Format and lint
+cargo fmt
+cargo clippy
+```
+
+### Test Overview
+
+The project has ~450 tests across multiple levels:
+
+**Unit tests** (in source files via `#[cfg(test)]`):
+
+| Location | Tests | What is tested |
+|----------|-------|----------------|
+| `tusks-tasks/src/task_list/models.rs` | 15 | Task sorting, collection operations, visibility filtering |
+| `tusks-tasks/src/task_list/init.rs` | 14 | Command extraction, grouping algorithm, collapsing, hidden tasks |
+| `tusks-tasks/src/list/conversion.rs` | 7 | TaskList-to-List conversion, separators, group headers |
+| `tusks-tasks/src/list/print.rs` | 4 | Alignment calculation, unicode width handling |
+| `tusks-tasks/src/list/models.rs` | 1 | RenderConfig defaults |
+| `tusks-lib/src/parsing/attribute/parse.rs` | 20 | `#[tusks(...)]` and `tasks(...)` attribute parsing |
+| `tusks-lib/src/parsing/tusk.rs` | 28 | Return type validation, default function argument rules, type checks |
+| `tusks-lib/src/parsing/parameters.rs` | 9 | Parameters struct validation (public, references, reserved fields) |
+
+**Integration tests** (`tusks-test/tests/`):
+
+| File | Tests | What is tested |
+|------|-------|----------------|
+| `basic.rs` | 13 | Simple commands, flags, help, version |
+| `arg.rs` | 52 | All argument types, edge cases (unicode, overflow, boundaries) |
+| `parameters.rs` | 26 | Parameter chaining across module levels |
+| `nested-modules.rs` | 31 | Deep nesting, help at every level, error paths |
+| `external-modules.rs` | 36 | External module integration, parameter passing |
+| `default-functions.rs` | 32 | Default command behavior, external subcommands |
+| `return-values.rs` | 39 | Exit codes, custom return values |
+| `command_attribute.rs` | 39 | Help text, about/long_about propagation |
+| `tasks-mode.rs` | 32 | Flat task syntax, traditional syntax, task list |
+| `tasks.rs` | 18 | Task list formatting, alignment, color disabling, sorting |
+| `integration_tests.rs` | 32 | Deeply nested parameter chains, external modules |
+
+**Compile-fail tests** (`tusks-test/tests/compile-fail/`):
+
+These use `trybuild` to verify that invalid macro input produces clear compiler errors:
+
+| File | What it verifies |
+|------|-----------------|
+| `invalid_return_type.rs` | `-> String` is rejected with helpful message |
+| `i32_return_type.rs` | `-> i32` is rejected (only `()`, `u8`, `Option<u8>` allowed) |
+| `duplicate_default.rs` | Two `#[default]` functions in one module are rejected |
+| `private_parameters.rs` | Non-`pub` Parameters struct is rejected |
+| `non_reference_parameter_field.rs` | `String` field (not `&String`) is rejected |
+| `super_field_in_parameters.rs` | Manual `super_` field is rejected (auto-generated) |
+| `unknown_tusks_attribute.rs` | `#[tusks(nonexistent)]` is rejected |

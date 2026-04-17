@@ -2,7 +2,8 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
 use crate::TusksModule;
-use crate::codegen::util::enum_util::convert_submodule_to_enum_variant;
+use crate::codegen::util::enum_util::to_variant_ident;
+use crate::codegen::util::field_util::is_generated_field;
 
 impl TusksModule {
     /// Generates a match arm for a submodule in the CLI command enum.
@@ -49,7 +50,7 @@ impl TusksModule {
     /// Input: submodule name "admin"
     /// Output: `Admin` (as syn::Ident)
     fn build_variant_ident(&self) -> syn::Ident {
-        convert_submodule_to_enum_variant(&self.name)
+        to_variant_ident(&self.name)
     }
 
     /// Generates pattern bindings for submodule parameters.
@@ -67,7 +68,7 @@ impl TusksModule {
         if let Some(ref params) = self.parameters {
             for field in &params.pstruct.fields {
                 if let Some(field_name) = &field.ident {
-                    if field_name != "super_" {
+                    if !is_generated_field(&field_name.to_string()) {
                         let binding_name = syn::Ident::new(&format!("p{}", param_counter), Span::call_site());
                         bindings.push((field_name.clone(), binding_name.clone()));
                         param_counter += 1;
@@ -183,15 +184,7 @@ impl TusksModule {
         has_commands: bool,
     ) -> TokenStream {
         if !has_commands {
-            let error_msg = if let Some(&last) = path.last() {
-                quote! { eprintln!("Subcommand required! Please provide a subcommand for {}!", #last); }
-            } else {
-                quote! { eprintln!("Command required! Please provide a command!"); }
-            };
-            return quote! {
-                #error_msg
-                Some(1)
-            };
+            return Self::build_no_command_error(path);
         }
 
         let mut new_path = path.to_vec();

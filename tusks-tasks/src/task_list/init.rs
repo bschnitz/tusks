@@ -29,8 +29,8 @@ impl TaskGroup {
         max_depth: usize,
         max_groupsize: usize,
     ) -> Self {
-        // Basisfall: keine weitere Gruppierung möglich oder nötig
-        // Zähle nur sichtbare Tasks für die Gruppierungsentscheidung
+        // Base case: no further grouping possible or needed
+        // Only count visible tasks for the grouping decision
         let visible_count = tasks.get_number_of_visible_tasks();
         
         if max_depth == 0 || visible_count <= max_groupsize {
@@ -40,7 +40,7 @@ impl TaskGroup {
             };
         }
 
-        // Rest bleibt gleich...
+        // Group tasks by their path component at the current depth
         let groups = tasks.tasks.into_iter().fold(
             IndexMap::<String, TaskCollection>::new(),
             |mut groups, task| {

@@ -6,7 +6,7 @@ use tusks_lib::AttributeCheck;
 use tusks_lib::attribute::models::TusksAttr;
 use tusks_lib::tasks::functions::add_execute_task_function;
 use tusks_lib::tasks::functions::add_show_help_for_task;
-use tusks_lib::tasks::functions::add_use_staements;
+use tusks_lib::tasks::functions::add_use_statements;
 use tusks_lib::tasks::functions::set_allow_external_subcommands;
 
 #[proc_macro_attribute]
@@ -16,7 +16,7 @@ pub fn tusks(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut args = parse_macro_input!(_attr as TusksAttr);
 
-    add_use_staements(&mut module);
+    add_use_statements(&mut module);
 
     // if tasks configuration exists add necessary functions
     if let Some(tasks_config) = &args.tasks {
@@ -171,9 +171,7 @@ fn insert_internal_module(
     // Build the __internal_tusks_module
     let internal_module = quote! {
         pub mod __internal_tusks_module {
-            // -----------------------------
-            // CLI-Struktur
-            // -----------------------------
+            // CLI structure
             pub mod cli {
                 #cli_content
             }

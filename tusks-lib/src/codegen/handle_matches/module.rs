@@ -2,7 +2,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
 use crate::AttributeCheck;
-use crate::codegen::util::enum_util::convert_external_module_to_enum_variant;
+use crate::codegen::util::enum_util::to_variant_ident;
 
 use crate::{TusksModule, models::Tusk};
 
@@ -84,7 +84,7 @@ impl TusksModule {
         }
 
         // Default fallback match arm for the module at the current path
-        let has_default_match_arm = false;
+        let mut has_default_match_arm = false;
         for tusk in &self.tusks {
             if tusk.func.has_attr("default") {
                 arms.push(self.build_default_function_match_arm(
@@ -95,6 +95,7 @@ impl TusksModule {
                 if self.allow_external_subcommands {
                     arms.push(self.build_external_subcommand_match_arm(tusk, path));
                 }
+                has_default_match_arm = true;
                 break;
             }
         }
@@ -116,21 +117,25 @@ impl TusksModule {
         arms
     }
 
-    // TODO: there is similar code elsewhere, deduplicate!
-    fn build_no_command_error_arm(path: &[&str]) -> TokenStream {
+    pub fn build_no_command_error(path: &[&str]) -> TokenStream {
         if let Some(&last) = path.last() {
             quote! {
-                None => {
-                    eprintln!("Subcommand required! Please provide a subcommand for {}!", #last);
-                    Some(1)
-                }
+                eprintln!("Subcommand required! Please provide a subcommand for {}!", #last);
+                Some(1)
             }
         } else {
             quote! {
-                None => {
-                    eprintln!("Command required! Please provide a command!");
-                    Some(1)
-                }
+                eprintln!("Command required! Please provide a command!");
+                Some(1)
+            }
+        }
+    }
+
+    fn build_no_command_error_arm(path: &[&str]) -> TokenStream {
+        let error = Self::build_no_command_error(path);
+        quote! {
+            None => {
+                #error
             }
         }
     }
@@ -140,7 +145,7 @@ impl TusksModule {
 
         for ext_mod in &self.external_modules {
             let alias = &ext_mod.alias;
-            let variant_ident = convert_external_module_to_enum_variant(alias);
+            let variant_ident = to_variant_ident(alias);
 
             // Build the correct path to the external module's handle_matches
             // If we're at root: super::#alias

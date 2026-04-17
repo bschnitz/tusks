@@ -1,9 +1,10 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 
-use crate::codegen::util::enum_util::convert_function_to_enum_variant;
+use crate::codegen::util::enum_util::to_variant_ident;
 
 use crate::{TusksModule, models::Tusk};
+use crate::codegen::util::field_util::is_generated_field;
 
 impl TusksModule {
     /// Coordinates the construction of a match arm for a function.
@@ -31,7 +32,7 @@ impl TusksModule {
         cli_path: &TokenStream,
         path: &[&str]
     ) -> TokenStream {
-        let variant_ident = convert_function_to_enum_variant(&tusk.func.sig.ident);
+        let variant_ident = to_variant_ident(&tusk.func.sig.ident);
         let pattern_bindings = self.build_pattern_bindings(tusk);
         let pattern_fields = self.build_pattern_fields(&pattern_bindings);
         let function_call = self.build_function_call(
@@ -178,8 +179,7 @@ impl TusksModule {
     ) -> Vec<TokenStream> {
         pattern_bindings.iter()
             .filter(|(field_name, _)| {
-                let field_name_str = field_name.to_string();
-                field_name_str != "_phantom_lifetime_marker"
+                !is_generated_field(&field_name.to_string())
             })
             .map(|(field_name, binding_name)| {
                 quote! { #field_name: #binding_name }

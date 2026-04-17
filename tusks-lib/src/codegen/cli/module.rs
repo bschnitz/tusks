@@ -2,11 +2,8 @@ use quote::quote;
 use proc_macro2::TokenStream;
 use syn::Ident;
 
-use crate::codegen::util::enum_util::{
-    convert_external_module_to_enum_variant,
-    convert_function_to_enum_variant,
-    convert_submodule_to_enum_variant
-};
+use crate::codegen::util::enum_util::to_variant_ident;
+use crate::codegen::util::field_util::is_generated_field;
 
 use crate::{TusksModule, models::{Tusk, TusksParameters}};
 
@@ -96,13 +93,7 @@ impl TusksModule{
         for field in &params.pstruct.fields {
             let field_name = &field.ident;
 
-            // Skip the super_ field
-            if field_name.as_ref().map(|id| id == "super_").unwrap_or(false) {
-                continue;
-            }
-
-            // Skip the _phantom_lifetime_marker
-            if field_name.as_ref().map(|id| id == "_phantom_lifetime_marker").unwrap_or(false) {
+            if field_name.as_ref().map(|id| is_generated_field(&id.to_string())).unwrap_or(false) {
                 continue;
             }
 
@@ -137,7 +128,7 @@ impl TusksModule{
     /// Generate the ExternalCommands enum
     fn build_external_commands_enum(&self, path: &Vec<&Ident>, debug: bool) -> TokenStream {
         let variants: Vec<_> = self.external_modules.iter().map(|ext_mod| {
-            let variant_ident = convert_external_module_to_enum_variant(&ext_mod.alias);
+            let variant_ident = to_variant_ident(&ext_mod.alias);
 
             // Anzahl super:: Prefixe: path.len() + 2
             let mut full_path: Vec<syn::Ident> = (0..path.len() + 2)
@@ -223,7 +214,7 @@ impl TusksModule{
     /// Build a command variant from a Tusk (command function)
     fn build_command_variant_from_tusk(&self, tusk: &Tusk) -> TokenStream {
         let func_name = &tusk.func.sig.ident;
-        let variant_ident = convert_function_to_enum_variant(func_name);
+        let variant_ident = to_variant_ident(func_name);
 
         // Extract fields from function parameters (skip first parameter which is &Parameters)
         let fields = self.build_fields_from_tusk_params(tusk);
@@ -313,7 +304,7 @@ impl TusksModule{
     /// Build a command variant from a submodule
     fn build_command_variant_from_submodule(&self, submodule: &TusksModule) -> TokenStream {
         let submod_name = &submodule.name;
-        let variant_ident = convert_submodule_to_enum_variant(submod_name);
+        let variant_ident = to_variant_ident(submod_name);
 
         // Extract fields from submodule's parameters
         let fields = if let Some(ref params) = submodule.parameters {
@@ -352,12 +343,7 @@ impl TusksModule{
         for field in &params.pstruct.fields {
             let field_name = &field.ident;
 
-            // Skip the super_ field
-            if field_name.as_ref().map(|id| id == "super_").unwrap_or(false) {
-                continue;
-            }
-
-            if field_name.as_ref().map(|id| id == "_phantom_lifetime_marker").unwrap_or(false) {
+            if field_name.as_ref().map(|id| is_generated_field(&id.to_string())).unwrap_or(false) {
                 continue;
             }
 

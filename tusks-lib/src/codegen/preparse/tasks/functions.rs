@@ -3,7 +3,7 @@ use syn::{Attribute, Meta};
 
 use crate::{AttributeValue, attribute::models::TasksConfig};
 
-pub fn add_use_staements(module: &mut ItemMod) {
+pub fn add_use_statements(module: &mut ItemMod) {
     let use_statement: Item = parse_quote! {
         use ::tusks::clap::{CommandFactory, Parser};
     };
@@ -18,37 +18,31 @@ pub fn set_allow_external_subcommands(module: &mut ItemMod) {
         return;
     }
     
-    // Suche nach existierendem #[command(...)]-Attribut
+    // Find existing #[command(...)] attribute
     if let Some(attr) = module.attrs.iter_mut().find(|a| a.path().is_ident("command")) {
-        // Vorhandenes command-Attribut gefunden
         match &mut attr.meta {
             Meta::List(list) => {
-                // Prüfe, ob tokens mit Komma enden
                 let tokens_str = list.tokens.to_string();
                 let has_trailing_comma = tokens_str.trim_end().ends_with(',');
-                
+
                 let tokens = &list.tokens;
                 if tokens.is_empty() {
                     list.tokens = parse_quote! { allow_external_subcommands = true };
                 } else if has_trailing_comma {
-                    // Komma ist bereits da, kein zusätzliches einfügen
                     list.tokens = parse_quote! { #tokens allow_external_subcommands = true };
                 } else {
-                    // Komma hinzufügen
                     list.tokens = parse_quote! { #tokens, allow_external_subcommands = true };
                 }
             }
             Meta::Path(_) => {
-                // #[command] ohne Argumente -> konvertiere zu #[command(allow_external_subcommands = true)]
                 *attr = parse_quote! { #[command(allow_external_subcommands = true)] };
             }
             Meta::NameValue(_) => {
-                // Unerwarteter Fall, ersetze komplett
                 *attr = parse_quote! { #[command(allow_external_subcommands = true)] };
             }
         }
     } else {
-        // Kein command-Attribut vorhanden -> füge neues hinzu
+        // No command attribute present — add a new one
         let new_attr: Attribute = parse_quote! { #[command(allow_external_subcommands = true)] };
         module.attrs.push(new_attr);
     }

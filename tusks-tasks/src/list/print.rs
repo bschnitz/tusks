@@ -68,7 +68,6 @@ impl List {
     }
     
     pub fn print(&self, config: &RenderConfig) {
-        eprintln!("List {:?}", self);
         if let Some(description) = &self.description {
             let styled = colored!(description, description.cyan().bold(), config);
             println!("{}\n", styled);
