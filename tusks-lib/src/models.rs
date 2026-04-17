@@ -4,7 +4,6 @@ use syn::{Attribute, Ident, ItemFn, ItemStruct, PathSegment, spanned::Spanned};
 pub struct Attributes(pub Vec<Attribute>);
 
 /// Represents a tusks module with all its elements
-#[derive(Debug)]
 pub struct TusksModule {
     /// Name of the module (e.g. "tasks", "sub1")
     pub name: Ident,
@@ -28,6 +27,23 @@ pub struct TusksModule {
 
     /// if #[command(allow_external_subcommands=true)] is set
     pub allow_external_subcommands: bool,
+
+    /// Enum definitions (e.g. #[derive(ValueEnum)]) to re-export in generated cli module
+    pub value_enums: Vec<syn::ItemEnum>,
+}
+
+impl std::fmt::Debug for TusksModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TusksModule")
+            .field("name", &self.name.to_string())
+            .field("parameters", &self.parameters)
+            .field("tusks", &self.tusks)
+            .field("submodules", &self.submodules)
+            .field("external_modules", &self.external_modules)
+            .field("allow_external_subcommands", &self.allow_external_subcommands)
+            .field("value_enums_count", &self.value_enums.len())
+            .finish()
+    }
 }
 
 /// Represents a parameters struct

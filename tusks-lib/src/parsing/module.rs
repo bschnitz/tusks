@@ -47,6 +47,7 @@ impl TusksModule {
             submodules: Vec::new(),
             external_modules: Vec::new(),
             allow_external_subcommands,
+            value_enums: Vec::new(),
         };
         
         tusks_module.extract_module_items(items, is_root)?;
@@ -118,6 +119,12 @@ impl TusksModule {
                     }
                 }
                 
+                syn::Item::Enum(item_enum) => {
+                    if matches!(item_enum.vis, syn::Visibility::Public(_)) {
+                        self.value_enums.push(item_enum);
+                    }
+                }
+
                 _ => {
                     // Ignore other items
                 }

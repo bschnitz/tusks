@@ -19,7 +19,13 @@ impl CliCodegen for TusksModule {
         let mut items = Vec::new();
 
         items.push(quote! {use ::tusks::clap;});
-        
+
+        // Re-export value enums so they are accessible from the generated cli module
+        for item_enum in &self.value_enums {
+            let enum_name = &item_enum.ident;
+            items.push(quote! { use super::super::#enum_name; });
+        }
+
         // 1. If root (path empty): generate Cli struct
         if path.is_empty() {
             items.push(self.build_cli_struct(debug));
