@@ -46,7 +46,7 @@ Instead of manually managing Clap subcommands and creating match statements, you
 
 ```toml
 [dependencies]
-tusks = "2.1"
+tusks = "3"
 ```
 
 ## Core Concepts

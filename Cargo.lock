@@ -476,7 +476,7 @@ dependencies = [
 
 [[package]]
 name = "tusks"
-version = "2.1.7"
+version = "3.0.0"
 dependencies = [
  "clap",
  "tokio",
@@ -487,7 +487,7 @@ dependencies = [
 
 [[package]]
 name = "tusks-lib"
-version = "2.1.7"
+version = "3.0.0"
 dependencies = [
  "indexmap",
  "proc-macro2",
@@ -497,7 +497,7 @@ dependencies = [
 
 [[package]]
 name = "tusks-macro"
-version = "2.1.7"
+version = "3.0.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -507,7 +507,7 @@ dependencies = [
 
 [[package]]
 name = "tusks-tasks"
-version = "2.1.7"
+version = "3.0.0"
 dependencies = [
  "clap",
  "indexmap",
@@ -517,7 +517,7 @@ dependencies = [
 
 [[package]]
 name = "tusks-test"
-version = "2.1.7"
+version = "3.0.0"
 dependencies = [
  "assert_cmd",
  "clap",

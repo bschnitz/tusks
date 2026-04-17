@@ -5,17 +5,17 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
-version = "2.1.7"
+version = "3.0.0"
 authors = ["Benjamin Schnitzler"]
 license = "MIT"
 repository = "https://github.com/bschnitz/tusks"
 description = "Declarative CLI framework built on top of clap"
 
 [workspace.dependencies]
-tusks-macro = { version = "2.1.7", path = "tusks-macro" }
-tusks-lib = { version = "2.1.7", path = "tusks-lib" }
-tusks-tasks = { version = "2.1.7", path = "tusks-tasks" }
-tusks = { version = "2.1.7", path = "tusks" }
+tusks-macro = { version = "3.0.0", path = "tusks-macro" }
+tusks-lib = { version = "3.0.0", path = "tusks-lib" }
+tusks-tasks = { version = "3.0.0", path = "tusks-tasks" }
+tusks = { version = "3.0.0", path = "tusks" }
 
 clap = "4.5.53"
 indexmap = "2.12.1"
