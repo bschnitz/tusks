@@ -39,21 +39,22 @@ impl Tusk {
         }))
     }
     
-    /// Validate that the return type is either nothing, u8, or Option<u8>
+    /// Validate that the return type is one of:
+    /// `()`, `u8`, `Option<u8>`, or `Result<T, E>` where T is one of those.
     fn validate_return_type(output: &syn::ReturnType) -> syn::Result<()> {
         match output {
-            syn::ReturnType::Default => {
-                // No return type - that's fine
-                Ok(())
-            }
+            syn::ReturnType::Default => Ok(()),
             syn::ReturnType::Type(_, ty) => {
-                // Check if it's u8 or Option<u8>
-                if Self::is_u8_type(ty) || Self::is_option_u8_type(ty) {
+                if Self::is_u8_type(ty)
+                    || Self::is_option_u8_type(ty)
+                    || Self::is_result_type(ty)
+                {
                     Ok(())
                 } else {
                     Err(syn::Error::new_spanned(
                         ty,
-                        "command function must return (), u8, or Option<u8>"
+                        "command function must return (), u8, Option<u8>, \
+                         or Result<T, E> where T is (), u8, or Option<u8>"
                     ))
                 }
             }
@@ -100,6 +101,53 @@ impl Tusk {
         };
 
         Self::is_u8_type(inner_ty)
+    }
+
+    /// Check if a type is Result<T, E> where T is (), u8, or Option<u8>.
+    /// The error type E is unconstrained (must implement Display at use-site).
+    pub fn is_result_type(ty: &syn::Type) -> bool {
+        let syn::Type::Path(type_path) = ty else {
+            return false;
+        };
+
+        let Some(segment) = type_path.path.segments.last() else {
+            return false;
+        };
+
+        if segment.ident != "Result" {
+            return false;
+        }
+
+        let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
+            return false;
+        };
+
+        // Result needs at least the Ok type (E defaults to () in some contexts, but typically both are present)
+        let Some(first_arg) = args.args.first() else {
+            return false;
+        };
+
+        let syn::GenericArgument::Type(ok_ty) = first_arg else {
+            return false;
+        };
+
+        // The Ok type must be one of: (), u8, Option<u8>
+        Self::is_unit_type(ok_ty) || Self::is_u8_type(ok_ty) || Self::is_option_u8_type(ok_ty)
+    }
+
+    /// Check if a type is the unit type `()`
+    fn is_unit_type(ty: &syn::Type) -> bool {
+        matches!(ty, syn::Type::Tuple(tuple) if tuple.elems.is_empty())
+    }
+
+    /// Extract the Ok type from a Result<T, E>. Returns None if not a Result.
+    pub fn result_ok_type(ty: &syn::Type) -> Option<&syn::Type> {
+        let syn::Type::Path(type_path) = ty else { return None };
+        let segment = type_path.path.segments.last()?;
+        if segment.ident != "Result" { return None; }
+        let syn::PathArguments::AngleBracketed(args) = &segment.arguments else { return None };
+        let syn::GenericArgument::Type(ok_ty) = args.args.first()? else { return None };
+        Some(ok_ty)
     }
 }
 
@@ -363,14 +411,14 @@ mod tests {
     fn from_fn_rejects_invalid_return_type() {
         let f = parse_fn("pub fn hello() -> String { String::new() }");
         let err = Tusk::from_fn(f, false, false).unwrap_err();
-        assert!(err.to_string().contains("must return (), u8, or Option<u8>"));
+        assert!(err.to_string().contains("command function must return"));
     }
 
     #[test]
     fn from_fn_rejects_i32_return() {
         let f = parse_fn("pub fn hello() -> i32 { 0 }");
         let err = Tusk::from_fn(f, false, false).unwrap_err();
-        assert!(err.to_string().contains("must return (), u8, or Option<u8>"));
+        assert!(err.to_string().contains("command function must return"));
     }
 
     #[test]
@@ -487,5 +535,40 @@ mod tests {
         let f = parse_fn("pub async fn hello() {}");
         let err = Tusk::from_fn(f, false, false).unwrap_err();
         assert!(err.to_string().contains("async"));
+    }
+
+    // --- Result return types ---
+
+    #[test]
+    fn from_fn_accepts_result_unit() {
+        let f = parse_fn("pub fn hello() -> Result<(), String> { Ok(()) }");
+        assert!(Tusk::from_fn(f, false, false).unwrap().is_some());
+    }
+
+    #[test]
+    fn from_fn_accepts_result_u8() {
+        let f = parse_fn("pub fn hello() -> Result<u8, String> { Ok(0) }");
+        assert!(Tusk::from_fn(f, false, false).unwrap().is_some());
+    }
+
+    #[test]
+    fn from_fn_accepts_result_option_u8() {
+        let f = parse_fn("pub fn hello() -> Result<Option<u8>, String> { Ok(None) }");
+        assert!(Tusk::from_fn(f, false, false).unwrap().is_some());
+    }
+
+    #[test]
+    fn from_fn_rejects_result_with_bad_ok_type() {
+        let f = parse_fn("pub fn hello() -> Result<String, String> { Ok(String::new()) }");
+        assert!(Tusk::from_fn(f, false, false).is_err());
+    }
+
+    #[test]
+    fn is_result_type_checks() {
+        assert!(Tusk::is_result_type(&parse_type("Result<(), String>")));
+        assert!(Tusk::is_result_type(&parse_type("Result<u8, Box<dyn std::error::Error>>")));
+        assert!(Tusk::is_result_type(&parse_type("Result<Option<u8>, anyhow::Error>")));
+        assert!(!Tusk::is_result_type(&parse_type("Result<String, String>")));
+        assert!(!Tusk::is_result_type(&parse_type("Option<u8>")));
     }
 }

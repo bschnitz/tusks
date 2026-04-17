@@ -6,6 +6,18 @@ use crate::codegen::util::enum_util::to_variant_ident;
 use crate::codegen::util::field_util::is_generated_field;
 use crate::{TusksModule, models::Tusk};
 
+/// Generates the expression for the `Ok(val)` branch of a Result return type.
+fn build_result_ok_handler(ok_ty: &syn::Type, val: TokenStream) -> TokenStream {
+    if Tusk::is_u8_type(ok_ty) {
+        quote! { Some(#val) }
+    } else if Tusk::is_option_u8_type(ok_ty) {
+        quote! { #val }
+    } else {
+        // () or unknown — treat as success
+        quote! { let _ = #val; None }
+    }
+}
+
 impl TusksModule {
     /// Generates a match arm for a command function.
     ///
@@ -85,15 +97,29 @@ impl TusksModule {
         let func_path = path.super_path_to(func_name);
         let maybe_await = if tusk.is_async { quote! { .await } } else { quote! {} };
 
+        let call = quote! { #func_path(#(#func_args),*)#maybe_await };
+
         match &tusk.func.sig.output {
             syn::ReturnType::Default => {
-                quote! { #func_path(#(#func_args),*)#maybe_await; None }
+                quote! { #call; None }
             }
             syn::ReturnType::Type(_, ty) => {
-                if Tusk::is_u8_type(ty) {
-                    quote! { Some(#func_path(#(#func_args),*)#maybe_await) }
+                if let Some(ok_ty) = Tusk::result_ok_type(ty) {
+                    // Result<T, E> — unwrap with error handling
+                    let ok_handler = build_result_ok_handler(ok_ty, quote! { __ok_val });
+                    quote! {
+                        match #call {
+                            Ok(__ok_val) => { #ok_handler }
+                            Err(__err) => {
+                                eprintln!("Error: {}", __err);
+                                Some(1)
+                            }
+                        }
+                    }
+                } else if Tusk::is_u8_type(ty) {
+                    quote! { Some(#call) }
                 } else if Tusk::is_option_u8_type(ty) {
-                    quote! { #func_path(#(#func_args),*)#maybe_await }
+                    quote! { #call }
                 } else {
                     quote! { None }
                 }

@@ -1,4 +1,4 @@
-error: command function must return (), u8, or Option<u8>
+error: command function must return (), u8, Option<u8>, or Result<T, E> where T is (), u8, or Option<u8>
  --> tests/compile-fail/invalid_return_type.rs:5:23
   |
 5 |     pub fn hello() -> String {

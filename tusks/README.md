@@ -23,6 +23,7 @@ If You just want a quick example head over to the [Comprehensive Example](#compr
   - [10. Command Attributes for Documentation](#10-command-attributes-for-documentation)
   - [11. Default Functions for Modules](#11-default-functions-for-modules)
   - [12. Async Commands](#12-async-commands)
+  - [13. Shell Completions](#13-shell-completions)
 - [Comprehensive Example](#comprehensive-example)
 - [License](#license)
 - [Contributions](#contributions)
@@ -583,7 +584,7 @@ Verbose output enabled
 
 ### 6. Return Values and Exit Codes
 
-Commands can return values that are used as exit codes. Allowed return types are `()`, `u8`, and `Option<u8>`. The return value is always returned by `cli::exec_cli()` as `Option<u8>`.
+Commands can return values that are used as exit codes. Allowed return types are `()`, `u8`, `Option<u8>`, and `Result<T, E>` (where T is one of those). The return value is always returned by `cli::exec_cli()` as `Option<u8>`.
 
 ```rust
 #[tusks(root)]
@@ -626,6 +627,17 @@ pub mod cli {
     }
 }
 
+    /// Command with Result return - errors are printed to stderr
+    pub fn deploy(version: String) -> Result<(), String> {
+        if version.starts_with("v") {
+            println!("Deploying {}...", version);
+            Ok(())
+        } else {
+            Err(format!("invalid version '{}' (must start with 'v')", version))
+        }
+    }
+}
+
 fn main() -> std::process::ExitCode {
     // exec_cli() returns the return value of the executed command
     // In this case, explicitly returns 0 if no return value exists
@@ -646,6 +658,18 @@ Validating config.toml...
 ✓ Valid
 $ echo $?
 0
+
+# Result return - success
+$ my-cli deploy v1.0
+Deploying v1.0...
+$ echo $?
+0
+
+# Result return - error is printed to stderr, exits with code 1
+$ my-cli deploy invalid
+Error: invalid version 'invalid' (must start with 'v')
+$ echo $?
+1
 ```
 
 ### 7. Various Argument Types
@@ -1271,6 +1295,26 @@ Migrated to v2.0
 - Sync functions work normally inside async context — no changes needed
 - All return types (`()`, `u8`, `Option<u8>`) work the same with async
 - Without the `async` feature, using `async fn` produces a clear compile error
+
+### 13. Shell Completions
+
+Enable the `completions` feature to add shell completion generation:
+
+```toml
+[dependencies]
+tusks = { version = "3", features = ["completions"] }
+```
+
+This adds a hidden `--completions <SHELL>` flag to your CLI that outputs a completion script:
+
+```bash
+# Generate and install completions
+$ my-cli --completions bash > ~/.local/share/bash-completion/completions/my-cli
+$ my-cli --completions zsh > ~/.zfunc/_my-cli
+$ my-cli --completions fish > ~/.config/fish/completions/my-cli.fish
+```
+
+Supported shells: `bash`, `zsh`, `fish`, `elvish`, `powershell`.
 
 ## Comprehensive Example
 

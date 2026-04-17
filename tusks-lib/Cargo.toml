@@ -15,3 +15,4 @@ syn = { workspace = true, features = ["full"] }
 
 [features]
 async = []
+completions = []

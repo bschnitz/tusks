@@ -8,6 +8,12 @@ use crate::codegen::util::field_util::is_generated_field;
 use crate::{TusksModule, models::{Tusk, TusksParameters}};
 use super::CliCodegen;
 
+/// Extract `#[doc = "..."]` attributes (i.e. `///` comments) from an attribute list.
+/// When placed on a clap derive variant, these become the `about` text.
+fn extract_doc_attrs(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {
+    attrs.iter().filter(|a| a.path().is_ident("doc")).collect()
+}
+
 impl CliCodegen for TusksModule {
     fn build_cli(&self, path: Vec<&Ident>, debug: bool) -> TokenStream {
         let mut items = Vec::new();
@@ -218,13 +224,12 @@ impl TusksModule {
     fn build_command_variant_from_tusk(&self, tusk: &Tusk) -> TokenStream {
         let func_name = &tusk.func.sig.ident;
         let variant_ident = to_variant_ident(func_name);
-
-        // Extract fields from function parameters (skip first parameter which is &Parameters)
         let fields = self.build_fields_from_tusk_params(tusk);
-
         let command_attr = tusk.generate_command_attribute();
-        
+        let doc_attrs = extract_doc_attrs(&tusk.func.attrs);
+
         quote! {
+            #(#doc_attrs)*
             #command_attr
             #[allow(non_camel_case_types)]
             #variant_ident {
@@ -321,8 +326,10 @@ impl TusksModule {
         };
 
         let command_attr = submodule.generate_command_attribute();
-        
+        let doc_attrs = extract_doc_attrs(&submodule.attrs.0);
+
         quote! {
+            #(#doc_attrs)*
             #command_attr
             #[allow(non_camel_case_types)]
             #variant_ident {

@@ -12,10 +12,12 @@ tusks-macro.workspace = true
 tusks-lib.workspace = true
 tusks-tasks.workspace = true
 clap.workspace = true
+clap_complete = { version = "4.6.2", optional = true }
 
 [features]
 debug = ["tusks-macro/debug"]
 async = ["tusks-macro/async", "dep:tokio"]
+completions = ["dep:clap_complete", "tusks-macro/completions"]
 
 [dependencies.tokio]
 workspace = true

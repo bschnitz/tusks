@@ -19,3 +19,4 @@ tusks-lib.workspace = true
 [features]
 debug = []
 async = ["tusks-lib/async"]
+completions = ["tusks-lib/completions"]

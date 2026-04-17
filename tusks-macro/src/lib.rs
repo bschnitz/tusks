@@ -159,26 +159,52 @@ fn insert_internal_module(
     let cli_content = tusks_module.build_cli(Vec::new(), attr.debug);
     let handle_matches = tusks_module.build_handle_matches(attr.root);
 
-    let exec_cli = if !attr.root {
-        quote! {}
-    } else if cfg!(feature = "async") {
+    let completions_check = if cfg!(feature = "completions") {
         quote! {
-            pub fn exec_cli() -> Option<u8> {
-                use ::tusks::clap::Parser;
-
-                let cli = cli::Cli::parse();
-                ::tusks::tokio::runtime::Runtime::new()
-                    .expect("failed to create tokio runtime")
-                    .block_on(handle_matches(&cli))
+            // Check for --completions <SHELL> before normal dispatch
+            {
+                let args: Vec<String> = std::env::args().collect();
+                if let Some(pos) = args.iter().position(|a| a == "--completions") {
+                    if let Some(shell_str) = args.get(pos + 1) {
+                        use ::tusks::clap::CommandFactory;
+                        let shell: ::tusks::clap_complete::Shell = shell_str.parse()
+                            .expect("invalid shell for --completions (try: bash, zsh, fish, elvish, powershell)");
+                        let mut cmd = cli::Cli::command();
+                        let name = cmd.get_name().to_string();
+                        ::tusks::clap_complete::generate(shell, &mut cmd, name, &mut std::io::stdout());
+                        return Some(0);
+                    } else {
+                        eprintln!("--completions requires a shell argument (bash, zsh, fish, elvish, powershell)");
+                        return Some(1);
+                    }
+                }
             }
         }
+    } else {
+        quote! {}
+    };
+
+    let handle_call = if cfg!(feature = "async") {
+        quote! {
+            ::tusks::tokio::runtime::Runtime::new()
+                .expect("failed to create tokio runtime")
+                .block_on(handle_matches(&cli))
+        }
+    } else {
+        quote! { handle_matches(&cli) }
+    };
+
+    let exec_cli = if !attr.root {
+        quote! {}
     } else {
         quote! {
             pub fn exec_cli() -> Option<u8> {
                 use ::tusks::clap::Parser;
 
+                #completions_check
+
                 let cli = cli::Cli::parse();
-                handle_matches(&cli)
+                #handle_call
             }
         }
     };
