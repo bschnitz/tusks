@@ -273,17 +273,10 @@ impl TusksModule {
                     .filter(|attr| attr.path().is_ident("arg"))
                     .collect();
 
-                if !attrs.is_empty() {
-                    fields.push(quote! {
-                        #(#attrs)*
-                        #param_name: #param_type,
-                    });
-                } else {
-                    fields.push(quote! {
-                        #[arg(long)]
-                        #param_name: #param_type,
-                    });
-                }
+                fields.push(quote! {
+                    #(#attrs)*
+                    #param_name: #param_type,
+                });
             }
         }
 

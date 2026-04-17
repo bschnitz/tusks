@@ -92,7 +92,7 @@ fn task_list_no_color_codes_when_colors_disabled() {
 #[test]
 fn run_git_clone_flat() {
     cli()
-        .args(&["git.clone", "--url", "https://example.com/repo"])
+        .args(&["git.clone", "https://example.com/repo"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Cloning https://example.com/repo"));
@@ -101,7 +101,7 @@ fn run_git_clone_flat() {
 #[test]
 fn run_git_commit_flat() {
     cli()
-        .args(&["git.commit", "--message", "fix: bug"])
+        .args(&["git.commit", "fix: bug"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Committing with message: fix: bug"));
@@ -110,7 +110,7 @@ fn run_git_commit_flat() {
 #[test]
 fn run_docker_build_flat() {
     cli()
-        .args(&["docker.build", "--context", "."])
+        .args(&["docker.build", "."])
         .assert()
         .success()
         .stdout(predicate::str::contains("Building Docker image from ."));
@@ -119,7 +119,7 @@ fn run_docker_build_flat() {
 #[test]
 fn run_docker_run_flat() {
     cli()
-        .args(&["docker.run", "--image", "nginx"])
+        .args(&["docker.run", "nginx"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Running container nginx"));
@@ -130,7 +130,7 @@ fn run_docker_run_flat() {
 #[test]
 fn run_git_clone_traditional() {
     cli()
-        .args(&["git", "clone", "--url", "https://example.com/repo"])
+        .args(&["git", "clone", "https://example.com/repo"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Cloning https://example.com/repo"));
@@ -139,7 +139,7 @@ fn run_git_clone_traditional() {
 #[test]
 fn run_git_commit_traditional() {
     cli()
-        .args(&["git", "commit", "--message", "initial"])
+        .args(&["git", "commit", "initial"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Committing with message: initial"));

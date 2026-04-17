@@ -251,9 +251,9 @@ fn test_level1b_task_multi_args_all_options() {
             "--name", "Alice",
             "--age", "30",
             "-a", // short flag for active
-            "--tags", "rust",
-            "--tags", "cli",
-            "--tags", "testing"
+            "rust",
+            "cli",
+            "testing"
         ])
         .assert()
         .success()
