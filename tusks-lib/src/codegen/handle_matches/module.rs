@@ -168,11 +168,10 @@ impl TusksModule {
     }
 
     pub fn tusk_has_parameters_arg(&self, tusk: &Tusk) -> bool {
-        if let Some(syn::FnArg::Typed(first_param)) = tusk.func.sig.inputs.first() {
-            if let Some(ref params) = self.parameters {
+        if let Some(syn::FnArg::Typed(first_param)) = tusk.func.sig.inputs.first()
+            && let Some(ref params) = self.parameters {
                 return Self::is_parameters_type(&first_param.ty, &params.pstruct.ident);
             }
-        }
         false
     }
 }

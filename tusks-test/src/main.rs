@@ -26,14 +26,14 @@ pub mod tasks {
         args: Vec<String>
     ) {
         let command = __internal_tusks_module::cli::Cli::command();
-        if args.len() == 0 {
+        if args.is_empty() {
             let task_list = tusks_tasks::task_list::models::TaskList::from_command(
                 &command,
                 ".".to_string(),
                 5,
                 20 
             );
-            task_list.to_list().print(&tusks_tasks::list::models::RenderConfig::default());
+            task_list.into_list().print(&tusks_tasks::list::models::RenderConfig::default());
         }
         else {
             let cli = __internal_tusks_module::cli::Cli::parse_from(
@@ -215,7 +215,7 @@ pub mod tasks {
             println!("=== level1b::task_no_params ===");
             println!("  x: {}", x);
             println!("  No Parameters struct in this module");
-            x as u8
+            x
         }
 
         #[command(

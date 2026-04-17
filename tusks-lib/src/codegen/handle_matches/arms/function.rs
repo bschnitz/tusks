@@ -135,13 +135,12 @@ impl TusksModule {
         let mut counter = 1;
 
         for param in tusk.func.sig.inputs.iter().skip(skip) {
-            if let syn::FnArg::Typed(pat_type) = param {
-                if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+            if let syn::FnArg::Typed(pat_type) = param
+                && let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
                     let binding = syn::Ident::new(&format!("p{}", counter), Span::call_site());
                     bindings.push((pat_ident.ident.clone(), binding));
                     counter += 1;
                 }
-            }
         }
 
         bindings

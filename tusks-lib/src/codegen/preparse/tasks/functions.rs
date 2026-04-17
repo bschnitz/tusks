@@ -82,7 +82,7 @@ pub fn add_execute_task_function(module: &mut ItemMod, config: &TasksConfig) {
             );
             let mut render_config = ::tusks::tasks::list::models::RenderConfig::default();
             render_config.use_colors = #use_colors;
-            task_list.to_list().print(&render_config);
+            task_list.into_list().print(&render_config);
             Some(0)
         }
     };
@@ -128,7 +128,7 @@ pub fn add_show_help_for_task(module: &mut ItemMod, config: &TasksConfig) {
                     #max_groupsize,
                     #max_depth
                 );
-                task_list.to_list().print(&::tusks::tasks::list::models::RenderConfig::default());
+                task_list.into_list().print(&::tusks::tasks::list::models::RenderConfig::default());
             }
         }
     };

@@ -49,8 +49,8 @@ impl TusksModule {
 
         if let Some(ref params) = self.parameters {
             for field in &params.pstruct.fields {
-                if let Some(field_name) = &field.ident {
-                    if !is_generated_field(&field_name.to_string()) {
+                if let Some(field_name) = &field.ident
+                    && !is_generated_field(&field_name.to_string()) {
                         let binding = syn::Ident::new(
                             &format!("p{}", counter),
                             Span::call_site(),
@@ -58,7 +58,6 @@ impl TusksModule {
                         bindings.push((field_name.clone(), binding));
                         counter += 1;
                     }
-                }
             }
         }
 

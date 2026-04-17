@@ -20,16 +20,16 @@ impl ParametersCodegen for TusksModule {
             self.add_parameters_struct(module, derive_debug)?
         };
 
-        let mut parameters_struct = Self::find_parameters_struct_mut(module)?;
+        let parameters_struct = Self::find_parameters_struct_mut(module)?;
         
         // 2. Add super_ field if needed
         if !is_tusks_root {
             self.add_super_field_to_parameters_struct(
-                &mut parameters_struct,
+                parameters_struct,
                 &lifetime)?;
         }
 
-        Self::add_phantom_field_to_struct(&mut parameters_struct, &lifetime)?;
+        Self::add_phantom_field_to_struct(parameters_struct, &lifetime)?;
 
         // Update our internal structure
         if let Some(ref mut params) = self.parameters {
@@ -41,11 +41,10 @@ impl ParametersCodegen for TusksModule {
             for submodule_data in &mut self.submodules {
                 // Find corresponding ItemMod in module items
                 if let Some(item_mod) = items.iter_mut().find_map(|item| {
-                    if let syn::Item::Mod(m) = item {
-                        if m.ident == submodule_data.name {
+                    if let syn::Item::Mod(m) = item
+                        && m.ident == submodule_data.name {
                             return Some(m);
                         }
-                    }
                     None
                 }) {
                     // Recursively supplement (submodules are never tusks root)
@@ -126,11 +125,10 @@ impl TusksModule {
     fn find_parameters_struct_mut(module: &mut ItemMod) -> syn::Result<&mut ItemStruct> {
         if let Some((_, ref mut items)) = module.content {
             for item in items.iter_mut() {
-                if let syn::Item::Struct(s) = item {
-                    if s.ident == "Parameters" {
+                if let syn::Item::Struct(s) = item
+                    && s.ident == "Parameters" {
                         return Ok(s);
                     }
-                }
             }
         }
 

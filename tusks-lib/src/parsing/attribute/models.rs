@@ -1,4 +1,5 @@
 #[derive(Debug)]
+#[derive(Default)]
 pub struct TusksAttr {
     pub debug: bool,
     pub root: bool,
@@ -25,13 +26,3 @@ impl Default for TasksConfig {
     }
 }
 
-impl Default for TusksAttr {
-    fn default() -> Self {
-        Self {
-            debug: false,
-            root: false,
-            derive_debug_for_parameters: false,
-            tasks: None,
-        }
-    }
-}

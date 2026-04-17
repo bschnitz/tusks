@@ -49,7 +49,7 @@ pub mod tasks {
         println!("  Chain to root: ext1 -> level1 -> root");
         println!("    root_param: {}", params.super_.super_.root_param.as_ref().unwrap());
         
-        Some(sum as u8)
+        Some(sum)
     }
 
     // Nested external module

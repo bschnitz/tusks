@@ -292,13 +292,11 @@ impl TusksModule {
 
     /// Check if a type is a reference to a parameters struct
     pub fn is_parameters_type(ty: &syn::Type, params_ident: &Ident) -> bool {
-        if let syn::Type::Reference(type_ref) = ty {
-            if let syn::Type::Path(type_path) = &*type_ref.elem {
-                if let Some(segment) = type_path.path.segments.last() {
+        if let syn::Type::Reference(type_ref) = ty
+            && let syn::Type::Path(type_path) = &*type_ref.elem
+                && let Some(segment) = type_path.path.segments.last() {
                     return segment.ident == *params_ident;
                 }
-            }
-        }
         false
     }
     

@@ -2,11 +2,11 @@ use crate::task_list::models::{TaskCollection, TaskGroup, TaskList};
 use crate::list::models::{List, ListGroup, ListGroupHeader, ListTask};
 
 impl TaskGroup {
-    fn to_list_groups(self, separator: &str) -> Vec<ListGroup> {
-        self.to_list_groups_recursive(separator, vec![])
+    fn into_list_groups(self, separator: &str) -> Vec<ListGroup> {
+        self.into_list_groups_recursive(separator, vec![])
     }
 
-    fn to_list_groups_recursive(self, separator: &str, path: Vec<&str>) -> Vec<ListGroup> {
+    fn into_list_groups_recursive(self, separator: &str, path: Vec<&str>) -> Vec<ListGroup> {
         let direct_tasks_group = tasks_to_list_group(
             self.direct_tasks,
             separator,
@@ -16,11 +16,11 @@ impl TaskGroup {
         let subgroup_groups = self.subgroups.into_iter().flat_map(|(k, group)| {
             let mut new_path = path.clone();
             new_path.push(k.as_str());
-            group.to_list_groups_recursive(separator, new_path)
+            group.into_list_groups_recursive(separator, new_path)
         });
 
         std::iter::once(direct_tasks_group)
-            .chain(subgroup_groups.into_iter())
+            .chain(subgroup_groups)
             .collect()
     }
 }
@@ -40,10 +40,10 @@ fn tasks_to_list_group(
 }
 
 impl TaskList {
-    pub fn to_list(self) -> List {
+    pub fn into_list(self) -> List {
         List {
             description: self.description.clone(),
-            groups: self.root.to_list_groups(&self.separator)
+            groups: self.root.into_list_groups(&self.separator)
         }
     }
 }
@@ -59,7 +59,7 @@ mod tests {
             .about("My CLI tool")
             .subcommand(Command::new("task1"));
 
-        let list = TaskList::from_command(&cmd, ".".into(), 5, 20).to_list();
+        let list = TaskList::from_command(&cmd, ".".into(), 5, 20).into_list();
         assert_eq!(list.description.as_deref(), Some("My CLI tool"));
     }
 
@@ -68,7 +68,7 @@ mod tests {
         let cmd = Command::new("root")
             .subcommand(Command::new("task1"));
 
-        let list = TaskList::from_command(&cmd, ".".into(), 5, 20).to_list();
+        let list = TaskList::from_command(&cmd, ".".into(), 5, 20).into_list();
         assert!(list.description.is_none());
     }
 
@@ -81,7 +81,7 @@ mod tests {
                     .subcommand(Command::new("push"))
             );
 
-        let list = TaskList::from_command(&cmd, "::".into(), 5, 20).to_list();
+        let list = TaskList::from_command(&cmd, "::".into(), 5, 20).into_list();
         let task_names: Vec<&str> = list.groups.iter()
             .flat_map(|g| g.tasks.iter())
             .map(|t| t.name.as_str())
@@ -96,7 +96,7 @@ mod tests {
             .subcommand(Command::new("visible").about("yes"))
             .subcommand(Command::new("hidden").hide(true));
 
-        let list = TaskList::from_command(&cmd, ".".into(), 5, 20).to_list();
+        let list = TaskList::from_command(&cmd, ".".into(), 5, 20).into_list();
         let task_names: Vec<&str> = list.groups.iter()
             .flat_map(|g| g.tasks.iter())
             .map(|t| t.name.as_str())
@@ -122,7 +122,7 @@ mod tests {
             );
 
         // max_groupsize=2 forces subgroups
-        let list = TaskList::from_command(&cmd, ".".into(), 2, 20).to_list();
+        let list = TaskList::from_command(&cmd, ".".into(), 2, 20).into_list();
         let group_names: Vec<Option<&str>> = list.groups.iter()
             .map(|g| g.header.name.as_deref())
             .collect();
@@ -137,7 +137,7 @@ mod tests {
             .subcommand(Command::new("a"))
             .subcommand(Command::new("b"));
 
-        let list = TaskList::from_command(&cmd, ".".into(), 5, 20).to_list();
+        let list = TaskList::from_command(&cmd, ".".into(), 5, 20).into_list();
         // The root group should have no header name
         assert!(list.groups[0].header.name.is_none());
     }
@@ -148,7 +148,7 @@ mod tests {
             .subcommand(Command::new("greet").about("Say hello"))
             .subcommand(Command::new("bye"));
 
-        let list = TaskList::from_command(&cmd, ".".into(), 5, 20).to_list();
+        let list = TaskList::from_command(&cmd, ".".into(), 5, 20).into_list();
         let tasks: Vec<_> = list.groups.iter()
             .flat_map(|g| g.tasks.iter())
             .collect();

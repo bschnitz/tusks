@@ -25,15 +25,14 @@ impl TusksParameters {
         // Validate that all fields are references
         for field in &item_struct.fields {
             // Check for super_ field, which is not allowed
-            if let Some(field_name) = &field.ident {
-                if field_name == "super_" {
+            if let Some(field_name) = &field.ident
+                && field_name == "super_" {
                     return Err(syn::Error::new_spanned(
                         field_name,
                         "super_ field is not allowed in Parameters struct. \
                             It will be added programmatically."
                     ));
                 }
-            }
             
             if !Self::is_reference_type(&field.ty) {
                 return Err(syn::Error::new_spanned(

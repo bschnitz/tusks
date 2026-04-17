@@ -22,7 +22,7 @@ impl Tusk {
 
         if is_async && !cfg!(feature = "async") {
             return Err(syn::Error::new_spanned(
-                &item_fn.sig.asyncness,
+                item_fn.sig.asyncness,
                 "async command functions require the `async` feature. \
                  Add `tusks = { version = \"...\", features = [\"async\"] }` to your Cargo.toml"
             ));
@@ -164,14 +164,13 @@ mod default_function {
     }
 
     fn check_duplicate_default(item_fn: &ItemFn, default_exists: bool) -> syn::Result<()> {
-        if default_exists {
-            if let Some(attr) = item_fn.attrs.iter().find(|a| a.path().is_ident("default")) {
+        if default_exists
+            && let Some(attr) = item_fn.attrs.iter().find(|a| a.path().is_ident("default")) {
                 return Err(syn::Error::new_spanned(
                     attr,
                     "only one function can be marked with #[default]"
                 ));
             }
-        }
         Ok(())
     }
 
@@ -208,13 +207,11 @@ mod default_function {
         }
 
         // Check if it's Vec<String> (not a reference)
-        if allow_external_subcommands {
-            if let syn::Type::Path(type_path) = &*pat_type.ty {
-                if is_vec_string(type_path) {
+        if allow_external_subcommands
+            && let syn::Type::Path(type_path) = &*pat_type.ty
+                && is_vec_string(type_path) {
                     return Ok(());
                 }
-            }
-        }
 
         Err(error_single_argument(arg, allow_external_subcommands))
     }

@@ -62,7 +62,7 @@ impl TusksModule {
         }
 
         if !is_tusks_root {
-            if !self.external_parent.is_some() {
+            if self.external_parent.is_none() {
                 return Err(syn::Error::new_spanned(
                     &self.name,
                     "A tusks module must either be root \
@@ -81,7 +81,7 @@ impl TusksModule {
             }
         }
 
-        return Ok(());
+        Ok(())
     }
     
     /// Extract all relevant items from a module

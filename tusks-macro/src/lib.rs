@@ -24,8 +24,8 @@ pub fn tusks(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // if tasks configuration exists add necessary functions
     if let Some(tasks_config) = &args.tasks {
         set_allow_external_subcommands(&mut module);
-        add_execute_task_function(&mut module, &tasks_config);
-        add_show_help_for_task(&mut module, &tasks_config);
+        add_execute_task_function(&mut module, tasks_config);
+        add_show_help_for_task(&mut module, tasks_config);
     }
 
     args.debug = args.debug || cfg!(feature = "debug");
