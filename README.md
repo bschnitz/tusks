@@ -24,6 +24,7 @@ If You just want a quick example head over to the [Comprehensive Example](#compr
   - [11. Default Functions for Modules](#11-default-functions-for-modules)
   - [12. Async Commands](#12-async-commands)
   - [13. Shell Completions](#13-shell-completions)
+- [Known Bugs](#known-bugs)
 - [Comprehensive Example](#comprehensive-example)
 - [License](#license)
 - [Contributions](#contributions)
@@ -1806,6 +1807,62 @@ As you can see, Tusks eliminates:
 - Repetitive match/dispatch logic
 - Manual parameter passing through the hierarchy
 - Boilerplate for default command handling
+
+## Known Bugs
+
+### Async feature + External Modules
+
+Using the `async` feature together with external modules causes a compile error:
+
+```
+error[E0726]: implicit elided lifetime not allowed here
+ --> src/deploy.rs:3:1
+  |
+3 | #[tusks()]
+  | ^^^^^^^^^^ expected lifetime parameter
+```
+
+**Minimal reproduction:**
+
+```toml
+# Cargo.toml
+[dependencies]
+tusks = { version = "3", features = ["async"] }
+```
+
+```rust
+// src/main.rs
+use tusks::tusks;
+
+mod deploy;
+
+#[tusks(root)]
+pub mod cli {
+    pub use crate::deploy::cli as deploy;
+}
+
+fn main() -> std::process::ExitCode {
+    std::process::ExitCode::from(cli::exec_cli().unwrap_or(0) as u8)
+}
+```
+
+```rust
+// src/deploy.rs
+use tusks::tusks;
+
+#[tusks()]
+pub mod cli {
+    pub use crate::cli as parent_;
+
+    pub async fn start(version: String) -> u8 {
+        println!("Deploying {}", version);
+        0
+    }
+}
+```
+
+Removing the `async` feature (and making commands sync) or inlining the module
+in `main.rs` both resolve the issue. External modules without `async` work fine.
 
 ## License
 
