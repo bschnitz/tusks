@@ -1984,8 +1984,15 @@ These use `trybuild` to verify that invalid macro input produces clear compiler 
 | `unknown_tusks_attribute.rs` | `#[tusks(nonexistent)]` is rejected |
 | `async_without_feature.rs` | `async fn` without `async` feature is rejected |
 
+**Async compile-fail tests** (`tusks-test-async/tests/compile-fail/`, run separately with `cd tusks-test-async && cargo test --test compile_fail`):
+
+| File | What it verifies |
+|------|-----------------|
+| `async_external_module.rs` | Known bug: `async` feature + external modules produces lifetime error ([see Known Bugs](#known-bugs)) |
+
 **Async tests** (`tusks-test-async/tests/`, run separately with `cd tusks-test-async && cargo test`):
 
 | File | Tests | What is tested |
 |------|-------|----------------|
 | `async_basic.rs` | 8 | Async commands, mixed sync/async, nested async, return types |
+| `async_external.rs` | 1 | **Known bug**: async + external modules (fails due to lifetime error, see [Known Bugs](#known-bugs)) |
