@@ -1810,59 +1810,24 @@ As you can see, Tusks eliminates:
 
 ## Known Bugs
 
-### Async feature + External Modules
+None currently.
 
-Using the `async` feature together with external modules causes a compile error:
+<details>
+<summary>Fixed: Async feature + External Modules (v3.2.0)</summary>
+
+Using the `async` feature together with external modules caused a compile error:
 
 ```
 error[E0726]: implicit elided lifetime not allowed here
- --> src/deploy.rs:3:1
-  |
-3 | #[tusks()]
-  | ^^^^^^^^^^ expected lifetime parameter
+  --> src/deploy.rs:3:1
+   |
+ 3 | #[tusks()]
+   | ^^^^^^^^^^ expected lifetime parameter
 ```
 
-**Minimal reproduction:**
+This was fixed in [v3.2.1](#321---2026-04-19).
 
-```toml
-# Cargo.toml
-[dependencies]
-tusks = { version = "3", features = ["async"] }
-```
-
-```rust
-// src/main.rs
-use tusks::tusks;
-
-mod deploy;
-
-#[tusks(root)]
-pub mod cli {
-    pub use crate::deploy::cli as deploy;
-}
-
-fn main() -> std::process::ExitCode {
-    std::process::ExitCode::from(cli::exec_cli().unwrap_or(0) as u8)
-}
-```
-
-```rust
-// src/deploy.rs
-use tusks::tusks;
-
-#[tusks()]
-pub mod cli {
-    pub use crate::cli as parent_;
-
-    pub async fn start(version: String) -> u8 {
-        println!("Deploying {}", version);
-        0
-    }
-}
-```
-
-Removing the `async` feature (and making commands sync) or inlining the module
-in `main.rs` both resolve the issue. External modules without `async` work fine.
+</details>
 
 ## License
 

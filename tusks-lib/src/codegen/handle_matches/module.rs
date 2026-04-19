@@ -24,7 +24,7 @@ impl HandleMatchesCodegen for TusksModule {
             quote! {
                 pub #maybe_async fn handle_matches(
                     cli: &cli::Cli,
-                    super_parameters: &super::parent_::Parameters
+                    super_parameters: &super::parent_::Parameters<'_>
                 ) -> Option<u8>
             }
         };

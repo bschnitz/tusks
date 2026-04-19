@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.2.1] - 2026-04-19
+
+### Fixed
+- **Async + external modules**: Fixed `E0726` implicit elided lifetime error
+  that occurred when using the `async` feature together with external modules.
+  The `handle_matches` function signature for external modules now uses
+  `Parameters<'_>` instead of eliding the lifetime.
+
 ## [3.2.0] - 2026-04-17
 
 ### Added
