@@ -290,13 +290,28 @@ fn test_help_traditional() {
         .stdout(predicate::str::contains("Clone a repository"));
 }
 
-// Invalid task
+// Invalid task (dotted): must fail cleanly with exit code 1, not crash.
+// Regression test for an infinite-recursion stack overflow: an unknown token
+// used to be re-parsed into the same external-subcommand fallback forever,
+// aborting the process with SIGABRT (which has no exit code). Asserting the
+// exact code 1 distinguishes a clean error from that crash.
 #[test]
 fn test_invalid_task() {
     cli()
         .args(&["invalid.task"])
         .assert()
-        .failure();
+        .code(1)
+        .stderr(predicate::str::contains("unrecognized command or task"));
+}
+
+// Invalid single token (no separator): same recursion guard, no dot involved.
+#[test]
+fn test_invalid_single_token() {
+    cli()
+        .args(&["nope"])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("unrecognized command or task"));
 }
 
 // Version

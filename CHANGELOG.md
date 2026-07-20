@@ -5,9 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.2.2] - 2026-07-20
+
+### Fixed
+
+- **Tasks mode**: An unknown token (e.g. `myapp foo`) no longer causes an
+  infinite-recursion stack overflow. Because tasks mode enables
+  `allow_external_subcommands`, an unrecognized token was captured as an
+  external subcommand and re-parsed by the generated `_execute_task` default
+  handler; when the token did not resolve to a real subcommand, the re-parse
+  produced the identical token and `_execute_task` called itself forever,
+  aborting with `SIGABRT`. The handler now checks whether the first path
+  segment names an actual subcommand and, if not, prints
+  `error: unrecognized command or task '<token>'` and returns exit code 1.
+
 ## [3.2.1] - 2026-04-19
 
 ### Fixed
+
 - **Async + external modules**: Fixed `E0726` implicit elided lifetime error
   that occurred when using the `async` feature together with external modules.
   The `handle_matches` function signature for external modules now uses
@@ -16,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [3.2.0] - 2026-04-17
 
 ### Added
+
 - **ValueEnum support**: Enums with `#[derive(Clone, clap::ValueEnum)]` inside
   tusks modules now work as argument types with automatic validation and
   possible-values in help output.
@@ -24,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **CHANGELOG.md**: Project now tracks changes in a changelog.
 
 ### Changed
+
 - Resolve all clippy warnings; rename `to_list()` to `into_list()` following
   Rust naming conventions for consuming methods.
 - Expand "Relationship with Clap" README section with comprehensive attribute
@@ -33,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [3.1.0] - 2026-04-17
 
 ### Added
+
 - **Doc comments as help text**: `///` comments on functions and modules now
   appear as `about` text in `--help` output. No need for explicit
   `#[command(about = "...")]` for simple descriptions.
@@ -47,28 +65,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Mixed sync/async in the same module works. All return types supported.
 
 ### Fixed
+
 - `has_default_match_arm` was never set to `true`, causing unreachable error
   arms when a `#[default]` function exists.
 - Debug `eprintln!` in `List::print()` that printed internal state to stderr
   on every task list display.
 
 ### Changed
+
 - Resolve all clippy warnings (collapsed if-let chains, unnecessary borrows,
   `to_list()` renamed to `into_list()` to follow Rust naming conventions).
 
 ## [3.0.0] - 2026-04-17
 
 ### Changed
+
 - **BREAKING**: Function parameters without an explicit `#[arg(...)]` attribute
   are now **positional** arguments (matching clap's default behavior) instead of
   `--long` named arguments. To keep the old behavior, add `#[arg(long)]`
   explicitly.
 
 ### Added
+
 - 142 new tests: unit tests for `tusks-tasks` and `tusks-lib` parsing,
   `trybuild` compile-fail tests, integration edge-case tests.
 
 ### Refactored
+
 - Introduce `ModulePath` type to replace raw `&[&str]` path tracking in codegen.
 - Split `TusksModule` methods into trait-based codegen phases (`CliCodegen`,
   `HandleMatchesCodegen`, `ParametersCodegen`).
@@ -78,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Remove empty placeholder files and translate German comments to English.
 
 ### Fixed
+
 - Typo: `add_use_staements` → `add_use_statements`.
 - 12 broken doctests (changed from ` ```rust ` to ` ```ignore ` for illustrative
   code blocks).
@@ -85,4 +109,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [2.1.7] - 2025-03-01
 
 ### Fixed
+
 - Relax `unicode-width` requirement to `0.2.0`.

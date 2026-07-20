@@ -67,6 +67,19 @@ pub fn add_execute_task_function(module: &mut ItemMod, config: &TasksConfig) {
         pub #maybe_async fn _execute_task(external_args: Vec<String>) -> Option<u8> {
             let command = __internal_tusks_module::cli::Cli::command();
             if let Some(first) = external_args.first() {
+                // Guard against infinite recursion: an unknown token that does not
+                // resolve to a real subcommand would be re-parsed into the same
+                // external-subcommand fallback, calling this function forever.
+                // Only proceed if the first path segment names an actual subcommand.
+                let first_segment = first.split(#separator).next().unwrap_or(first.as_str());
+                let is_known = command.get_subcommands().any(|sc| {
+                    sc.get_name() == first_segment
+                        || sc.get_all_aliases().any(|alias| alias == first_segment)
+                });
+                if !is_known {
+                    eprintln!("error: unrecognized command or task '{}'", first);
+                    return Some(1);
+                }
                 let mut transformed_arguments = vec![command.get_name().to_string()];
                 transformed_arguments.extend(first.split(#separator).map(|s| s.to_string()));
                 transformed_arguments.extend_from_slice(&external_args[1..]);
